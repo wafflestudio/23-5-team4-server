@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/moisha?allowPublicKeyRetrieval=true
+    username: user
+    password: somepassword
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: this-is-a-very-long-and-secure-secret-key-for-jwt-token-generation
+  expiration-in-ms: 86400000
+
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          jdbc: DEBUG
+        jdbc:
+          core:
+            JdbcTemplate: DEBUG
+            namedparam:
+              NamedParameterJdbcTemplate: TRACE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
