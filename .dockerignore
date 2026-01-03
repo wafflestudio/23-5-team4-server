@@ -1,0 +1,11 @@
+.git
+.github
+.gradle
+build
+bin
+out
+*.md
+.gitignore
+.dockerignore
+docker-compose.yaml
+k8s
