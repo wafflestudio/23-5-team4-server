@@ -4,7 +4,7 @@ import com.wafflestudio.spring2025.domain.user.model.User
 import org.springframework.data.repository.CrudRepository
 
 interface UserRepository : CrudRepository<User, Long> {
-    fun findByUsername(username: String): User?
+    fun findByEmail(email: String): User?
 
-    fun existsByUsername(username: String): Boolean
+    fun existsByEmail(email: String): Boolean
 }

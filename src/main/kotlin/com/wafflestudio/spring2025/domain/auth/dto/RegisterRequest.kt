@@ -4,8 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema
 
 @Schema(description = "회원가입 요청")
 data class RegisterRequest(
-    @Schema(description = "사용자 아이디 (4자 이상)", example = "user1234", required = true)
-    val username: String,
-    @Schema(description = "비밀번호 (4자 이상)", example = "password1234", required = true)
-    val password: String,
+    @Schema(description = "사용자 이메일", example = "user@example.com", required = true)
+    val email: String,
+    @Schema(description = "사용자 이름", example = "홍길동", required = true)
+    val name: String,
+    @Schema(description = "프로필 이미지 URL", example = "https://cdn.example.com/profile.png")
+    val profileImage: String? = null,
 )

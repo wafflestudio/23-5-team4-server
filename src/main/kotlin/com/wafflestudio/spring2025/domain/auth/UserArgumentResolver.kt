@@ -23,7 +23,7 @@ class UserArgumentResolver(
         binderFactory: WebDataBinderFactory?,
     ): User? =
         runCatching {
-            val username = webRequest.getAttribute("username", 0) as String
-            userRepository.findByUsername(username)
+            val email = webRequest.getAttribute("email", 0) as String
+            userRepository.findByEmail(email)
         }.getOrNull()
 }

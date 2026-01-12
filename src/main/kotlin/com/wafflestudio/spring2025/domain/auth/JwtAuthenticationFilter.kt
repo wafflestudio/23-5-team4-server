@@ -34,8 +34,8 @@ class JwtAuthenticationFilter(
                 return
             }
 
-            val username = jwtTokenProvider.getUsername(token)
-            request.setAttribute("username", username)
+            val email = jwtTokenProvider.getEmail(token)
+            request.setAttribute("email", email)
         } else {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or missing token")
             return

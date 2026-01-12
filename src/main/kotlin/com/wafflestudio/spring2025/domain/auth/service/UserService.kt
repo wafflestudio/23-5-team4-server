@@ -1,14 +1,12 @@
 package com.wafflestudio.spring2025.domain.auth.service
 
-import com.wafflestudio.spring2025.domain.auth.exception.AuthenticateException
 import com.wafflestudio.spring2025.domain.auth.JwtTokenProvider
-import com.wafflestudio.spring2025.domain.auth.exception.SignUpBadPasswordException
-import com.wafflestudio.spring2025.domain.auth.exception.SignUpBadUsernameException
-import com.wafflestudio.spring2025.domain.auth.exception.SignUpUsernameConflictException
+import com.wafflestudio.spring2025.domain.auth.exception.AuthenticateException
+import com.wafflestudio.spring2025.domain.auth.exception.SignUpBadEmailException
+import com.wafflestudio.spring2025.domain.auth.exception.SignUpEmailConflictException
 import com.wafflestudio.spring2025.domain.user.dto.core.UserDto
 import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
-import org.mindrot.jbcrypt.BCrypt
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
 
@@ -20,40 +18,34 @@ class UserService(
     private val jwtBlacklistService: JwtBlacklistService,
 ) {
     fun register(
-        username: String,
-        password: String,
+        email: String,
+        name: String,
+        profileImage: String?,
     ): UserDto {
-        if (username.length < 4) {
-            throw SignUpBadUsernameException()
-        }
-        if (password.length < 4) {
-            throw SignUpBadPasswordException()
+        if (email.isBlank()) {
+            throw SignUpBadEmailException()
         }
 
-        if (userRepository.existsByUsername(username)) {
-            throw SignUpUsernameConflictException()
+        if (userRepository.existsByEmail(email)) {
+            throw SignUpEmailConflictException()
         }
 
-        val encryptedPassword = BCrypt.hashpw(password, BCrypt.gensalt())
         val user =
             userRepository.save(
                 User(
-                    username = username,
-                    password = encryptedPassword,
+                    email = email,
+                    name = name,
+                    profileImage = profileImage,
                 ),
             )
         return UserDto(user)
     }
 
     fun login(
-        username: String,
-        password: String,
+        email: String,
     ): String {
-        val user = userRepository.findByUsername(username) ?: throw AuthenticateException()
-        if (BCrypt.checkpw(password, user.password).not()) {
-            throw AuthenticateException()
-        }
-        val accessToken = jwtTokenProvider.createToken(user.username)
+        val user = userRepository.findByEmail(email) ?: throw AuthenticateException()
+        val accessToken = jwtTokenProvider.createToken(user.email)
         return accessToken
     }
 

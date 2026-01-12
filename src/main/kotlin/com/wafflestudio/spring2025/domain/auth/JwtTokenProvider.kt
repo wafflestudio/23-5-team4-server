@@ -16,20 +16,20 @@ class JwtTokenProvider(
 ) {
     private val key = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
-    fun createToken(username: String): String {
+    fun createToken(email: String): String {
         val now = Date()
         val validity = Date(now.time + expirationInMs)
 
         return Jwts
             .builder()
-            .setSubject(username)
+            .setSubject(email)
             .setIssuedAt(now)
             .setExpiration(validity)
             .signWith(key, SignatureAlgorithm.HS256)
             .compact()
     }
 
-    fun getUsername(token: String): String =
+    fun getEmail(token: String): String =
         Jwts
             .parserBuilder()
             .setSigningKey(key)

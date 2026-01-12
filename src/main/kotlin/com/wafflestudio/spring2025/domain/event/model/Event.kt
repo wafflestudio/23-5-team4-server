@@ -7,10 +7,17 @@ import java.time.Instant
 @Table("events")
 class Event(
     @Id var id: Long? = null,
-    var groupId: Long,
-    var startTime: Instant,
-    var endTime: Instant,
-    var registerDeadline: Instant,
-    var detail: String,
-    var capacity: Int,
+    var title: String,
+    var description: String? = null,
+    var location: String? = null,
+    var startAt: Instant? = null,
+    var endAt: Instant? = null,
+    var capacity: Int? = null,
+    var waitlistEnabled: Boolean,
+    var registrationDeadline: Instant? = null,
+    var createdBy: Long,
+    @org.springframework.data.annotation.CreatedDate
+    var createdAt: Instant? = null,
+    @org.springframework.data.annotation.LastModifiedDate
+    var updatedAt: Instant? = null,
 )

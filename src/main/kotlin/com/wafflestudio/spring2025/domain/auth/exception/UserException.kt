@@ -11,25 +11,18 @@ sealed class UserException(
     cause: Throwable? = null,
 ) : DomainException(errorCode, httpStatusCode, msg, cause)
 
-class SignUpUsernameConflictException :
+class SignUpEmailConflictException :
     UserException(
         errorCode = 0,
         httpStatusCode = HttpStatus.CONFLICT,
-        msg = "Username conflict",
+        msg = "Email conflict",
     )
 
-class SignUpBadUsernameException :
+class SignUpBadEmailException :
     UserException(
         errorCode = 0,
         httpStatusCode = HttpStatus.BAD_REQUEST,
-        msg = "Bad username",
-    )
-
-class SignUpBadPasswordException :
-    UserException(
-        errorCode = 0,
-        httpStatusCode = HttpStatus.BAD_REQUEST,
-        msg = "Bad password",
+        msg = "Bad email",
     )
 
 class AuthenticateException :

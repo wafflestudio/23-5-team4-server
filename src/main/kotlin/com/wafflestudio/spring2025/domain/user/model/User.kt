@@ -9,8 +9,9 @@ import java.time.Instant
 @Table("users")
 class User(
     @Id var id: Long? = null,
-    var username: String,
-    var password: String,
+    var email: String,
+    var name: String,
+    var profileImage: String? = null,
     @CreatedDate
     var createdAt: Instant? = null,
     @LastModifiedDate

@@ -5,14 +5,12 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 import java.time.Instant
 
-@Table("registrations")
-class Registration(
+@Table("registration_tokens")
+class RegistrationToken(
     @Id var id: Long? = null,
-    var userId: Long? = null,
-    var eventId: Long,
-    var guestName: String? = null,
-    var guestEmail: String? = null,
-    var status: RegistrationStatus,
+    var registrationId: Long,
+    var tokenHash: String,
+    var purpose: RegistrationTokenPurpose,
     @CreatedDate
     var createdAt: Instant? = null,
 )

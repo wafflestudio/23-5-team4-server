@@ -1,18 +1,16 @@
-package com.wafflestudio.spring2025.domain.registration.model
+package com.wafflestudio.spring2025.domain.user.identity.model
 
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 import java.time.Instant
 
-@Table("registrations")
-class Registration(
+@Table("user_identities")
+class UserIdentity(
     @Id var id: Long? = null,
-    var userId: Long? = null,
-    var eventId: Long,
-    var guestName: String? = null,
-    var guestEmail: String? = null,
-    var status: RegistrationStatus,
+    var userId: Long,
+    var provider: String,
+    var providerUserId: String,
     @CreatedDate
     var createdAt: Instant? = null,
 )

@@ -30,8 +30,8 @@ class AuthController(
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "201", description = "회원가입 성공"),
-            ApiResponse(responseCode = "400", description = "잘못된 요청 (username 또는 password가 4자 미만)"),
-            ApiResponse(responseCode = "409", description = "이미 존재하는 username"),
+            ApiResponse(responseCode = "400", description = "잘못된 요청 (email 누락)"),
+            ApiResponse(responseCode = "409", description = "이미 존재하는 email"),
         ],
     )
     @PostMapping("/register")
@@ -40,17 +40,18 @@ class AuthController(
     ): ResponseEntity<RegisterResponse> {
         val userDto =
             userService.register(
-                username = registerRequest.username,
-                password = registerRequest.password,
+                email = registerRequest.email,
+                name = registerRequest.name,
+                profileImage = registerRequest.profileImage,
             )
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto)
     }
 
-    @Operation(summary = "로그인", description = "username과 password로 로그인하여 JWT 토큰을 발급받습니다")
+    @Operation(summary = "로그인", description = "email로 로그인하여 JWT 토큰을 발급받습니다")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "201", description = "로그인 성공, JWT 토큰 반환"),
-            ApiResponse(responseCode = "401", description = "인증 실패 (username 또는 password 불일치)"),
+            ApiResponse(responseCode = "401", description = "인증 실패 (email 불일치)"),
         ],
     )
     @PostMapping("/login")
@@ -59,8 +60,7 @@ class AuthController(
     ): ResponseEntity<LoginResponse> {
         val token =
             userService.login(
-                username = loginRequest.username,
-                password = loginRequest.password,
+                email = loginRequest.email,
             )
         return ResponseEntity.status(HttpStatus.CREATED).body(LoginResponse(token))
     }
