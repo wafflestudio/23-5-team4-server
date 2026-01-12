@@ -31,26 +31,13 @@ class EventController(
         @LoggedInUser user: User,
         @RequestBody request: CreateEventRequest,
     ): ResponseEntity<EventDto> {
-        val event =
-            eventService.create(
-                title = request.title,
-                description = request.description,
-                location = request.location,
-                startAt = request.startAt?.let(Instant::ofEpochMilli),
-                endAt = request.endAt?.let(Instant::ofEpochMilli),
-                capacity = request.capacity,
-                waitlistEnabled = request.waitlistEnabled,
-                registrationDeadline = request.registrationDeadline?.let(Instant::ofEpochMilli),
-                createdBy = user.id!!,
-            )
-        return ResponseEntity.ok(event)
+        TODO("이벤트 생성 API 구현")
     }
 
     @Operation(summary = "이벤트 목록 조회", description = "작성자 기준 이벤트 목록을 조회합니다")
     @GetMapping
     fun list(@LoggedInUser user: User): ResponseEntity<List<EventDto>> {
-        val events = eventService.getByCreator(user.id!!)
-        return ResponseEntity.ok(events)
+        TODO("이벤트 목록 조회 API 구현")
     }
 
     @Operation(summary = "이벤트 상세 조회", description = "이벤트 상세 정보를 조회합니다")
@@ -58,8 +45,7 @@ class EventController(
     fun getById(
         @PathVariable eventId: Long,
     ): ResponseEntity<EventDto> {
-        val event = eventService.getById(eventId)
-        return ResponseEntity.ok(event)
+        TODO("이벤트 상세 조회 API 구현")
     }
 
     @Operation(summary = "이벤트 수정", description = "이벤트를 수정합니다")
@@ -68,19 +54,7 @@ class EventController(
         @PathVariable eventId: Long,
         @RequestBody request: UpdateEventRequest,
     ): ResponseEntity<EventDto> {
-        val event =
-            eventService.update(
-                eventId = eventId,
-                title = request.title,
-                description = request.description,
-                location = request.location,
-                startAt = request.startAt?.let(Instant::ofEpochMilli),
-                endAt = request.endAt?.let(Instant::ofEpochMilli),
-                capacity = request.capacity,
-                waitlistEnabled = request.waitlistEnabled,
-                registrationDeadline = request.registrationDeadline?.let(Instant::ofEpochMilli),
-            )
-        return ResponseEntity.ok(event)
+        TODO("이벤트 수정 API 구현")
     }
 
     @Operation(summary = "이벤트 삭제", description = "이벤트를 삭제합니다")
@@ -88,7 +62,6 @@ class EventController(
     fun delete(
         @PathVariable eventId: Long,
     ): ResponseEntity<Unit> {
-        eventService.delete(eventId)
-        return ResponseEntity.noContent().build()
+        TODO("이벤트 삭제 API 구현")
     }
 }

@@ -13,17 +13,16 @@ import org.springframework.web.method.support.ModelAndViewContainer
 class UserArgumentResolver(
     private val userRepository: UserRepository,
 ) : HandlerMethodArgumentResolver {
-    override fun supportsParameter(parameter: MethodParameter): Boolean =
-        parameter.hasParameterAnnotation(LoggedInUser::class.java) && parameter.parameterType == User::class.java
+    override fun supportsParameter(parameter: MethodParameter): Boolean {
+        TODO("로그인 사용자 파라미터 지원 여부 판단 구현")
+    }
 
     override fun resolveArgument(
         parameter: MethodParameter,
         mavContainer: ModelAndViewContainer?,
         webRequest: NativeWebRequest,
         binderFactory: WebDataBinderFactory?,
-    ): User? =
-        runCatching {
-            val email = webRequest.getAttribute("email", 0) as String
-            userRepository.findByEmail(email)
-        }.getOrNull()
+    ): User? {
+        TODO("요청 컨텍스트에서 사용자 조회 구현")
+    }
 }

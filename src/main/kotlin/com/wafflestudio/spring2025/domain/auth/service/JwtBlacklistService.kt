@@ -12,14 +12,11 @@ class JwtBlacklistService(
     private val expirationInMs: Long,
 ) {
     fun addToBlacklist(token: String) {
-        val key = BLACKLIST_PREFIX + token
-        // TTL을 JWT 만료 시간과 동일하게 설정 (메모리 절약)
-        redisTemplate.opsForValue().set(key, "true", expirationInMs, TimeUnit.MILLISECONDS)
+        TODO("JWT 블랙리스트 등록 구현")
     }
 
     fun isBlacklisted(token: String): Boolean {
-        val key = BLACKLIST_PREFIX + token
-        return redisTemplate.hasKey(key) == true
+        TODO("JWT 블랙리스트 조회 구현")
     }
 
     companion object {

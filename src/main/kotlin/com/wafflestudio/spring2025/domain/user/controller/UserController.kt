@@ -32,7 +32,9 @@ class UserController(
     @GetMapping("/me")
     fun me(
         @Parameter(hidden = true) @LoggedInUser user: User,
-    ): ResponseEntity<GetMeResponse> = ResponseEntity.ok(UserDto(user))
+    ): ResponseEntity<GetMeResponse> {
+        TODO("본인 정보 조회 API 구현")
+    }
 
     @Operation(summary = "로그아웃", description = "현재 JWT 토큰을 무효화합니다")
     @ApiResponses(
@@ -46,9 +48,6 @@ class UserController(
         @Parameter(hidden = true) @LoggedInUser user: User,
         @Parameter(hidden = true) @org.springframework.web.bind.annotation.RequestHeader("Authorization") authorization: String,
     ): ResponseEntity<Unit> {
-        // "Bearer " 접두사 제거
-        val token = authorization.removePrefix("Bearer ")
-        userService.logout(user, token)
-        return ResponseEntity.ok().build()
+        TODO("로그아웃 API 구현")
     }
 }

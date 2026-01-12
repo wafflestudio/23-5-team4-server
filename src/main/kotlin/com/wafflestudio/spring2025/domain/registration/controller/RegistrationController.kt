@@ -28,21 +28,13 @@ class RegistrationController(
         @RequestBody request: CreateRegistrationRequest,
         @LoggedInUser user: User?,
     ): ResponseEntity<RegistrationDto> {
-        val registration =
-            registrationService.create(
-                userId = user?.id,
-                eventId = eventId,
-                guestName = request.guestName,
-                guestEmail = request.guestEmail,
-            )
-        return ResponseEntity.ok(registration)
+        TODO("이벤트 신청 생성 API 구현")
     }
 
     @Operation(summary = "이벤트 신청 목록 조회", description = "이벤트 신청 목록을 조회합니다")
     @GetMapping
     fun list(@PathVariable eventId: Long): ResponseEntity<List<RegistrationDto>> {
-        val registrations = registrationService.getByEventId(eventId)
-        return ResponseEntity.ok(registrations)
+        TODO("이벤트 신청 목록 조회 API 구현")
     }
 
     @Operation(summary = "이벤트 신청 승인", description = "이벤트 신청을 승인합니다")
@@ -51,8 +43,7 @@ class RegistrationController(
         @PathVariable eventId: Long,
         @PathVariable registrationId: Long,
     ): ResponseEntity<Unit> {
-        registrationService.confirm(registrationId)
-        return ResponseEntity.noContent().build()
+        TODO("이벤트 신청 승인 API 구현")
     }
 
     @Operation(summary = "이벤트 신청 취소", description = "이벤트 신청을 취소합니다")
@@ -61,7 +52,6 @@ class RegistrationController(
         @PathVariable eventId: Long,
         @PathVariable registrationId: Long,
     ): ResponseEntity<Unit> {
-        registrationService.cancel(registrationId)
-        return ResponseEntity.noContent().build()
+        TODO("이벤트 신청 취소 API 구현")
     }
 }

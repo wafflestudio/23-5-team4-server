@@ -22,37 +22,19 @@ class UserService(
         name: String,
         profileImage: String?,
     ): UserDto {
-        if (email.isBlank()) {
-            throw SignUpBadEmailException()
-        }
-
-        if (userRepository.existsByEmail(email)) {
-            throw SignUpEmailConflictException()
-        }
-
-        val user =
-            userRepository.save(
-                User(
-                    email = email,
-                    name = name,
-                    profileImage = profileImage,
-                ),
-            )
-        return UserDto(user)
+        TODO("회원가입 도메인 로직 구현")
     }
 
     fun login(
         email: String,
     ): String {
-        val user = userRepository.findByEmail(email) ?: throw AuthenticateException()
-        val accessToken = jwtTokenProvider.createToken(user.email)
-        return accessToken
+        TODO("로그인 도메인 로직 구현")
     }
 
     fun logout(
         user: User,
         token: String,
     ) {
-        jwtBlacklistService.addToBlacklist(token)
+        TODO("로그아웃 도메인 로직 구현")
     }
 }

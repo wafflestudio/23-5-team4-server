@@ -21,10 +21,10 @@ data class UserIdentityDto(
     val createdAt: Long,
 ) {
     constructor(identity: UserIdentity) : this(
-        id = identity.id!!,
-        userId = identity.userId,
-        provider = identity.provider,
-        providerUserId = identity.providerUserId,
-        createdAt = identity.createdAt!!.toEpochMilli(),
+        id = TODO("UserIdentity -> UserIdentityDto 매핑 구현"),
+        userId = TODO("UserIdentity -> UserIdentityDto 매핑 구현"),
+        provider = TODO("UserIdentity -> UserIdentityDto 매핑 구현"),
+        providerUserId = TODO("UserIdentity -> UserIdentityDto 매핑 구현"),
+        createdAt = TODO("UserIdentity -> UserIdentityDto 매핑 구현"),
     )
 }

@@ -38,13 +38,7 @@ class AuthController(
     fun register(
         @RequestBody registerRequest: RegisterRequest,
     ): ResponseEntity<RegisterResponse> {
-        val userDto =
-            userService.register(
-                email = registerRequest.email,
-                name = registerRequest.name,
-                profileImage = registerRequest.profileImage,
-            )
-        return ResponseEntity.status(HttpStatus.CREATED).body(userDto)
+        TODO("회원가입 API 구현")
     }
 
     @Operation(summary = "로그인", description = "email로 로그인하여 JWT 토큰을 발급받습니다")
@@ -58,11 +52,7 @@ class AuthController(
     fun login(
         @RequestBody loginRequest: LoginRequest,
     ): ResponseEntity<LoginResponse> {
-        val token =
-            userService.login(
-                email = loginRequest.email,
-            )
-        return ResponseEntity.status(HttpStatus.CREATED).body(LoginResponse(token))
+        TODO("로그인 API 구현")
     }
 
     @Operation(summary = "로그아웃", description = "현재 JWT 토큰을 블랙리스트에 추가하여 로그아웃합니다")
@@ -74,18 +64,10 @@ class AuthController(
     )
     @PostMapping("/logout")
     fun logout(request: HttpServletRequest): ResponseEntity<LogoutResponse> {
-        val token = resolveToken(request)
-        if (token != null) {
-            jwtBlacklistService.addToBlacklist(token)
-        }
-        return ResponseEntity.ok(LogoutResponse("Successfully logged out"))
+        TODO("로그아웃 API 구현")
     }
 
     private fun resolveToken(request: HttpServletRequest): String? {
-        val bearerToken = request.getHeader("Authorization")
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7)
-        }
-        return null
+        TODO("Authorization 헤더에서 토큰 추출 구현")
     }
 }
