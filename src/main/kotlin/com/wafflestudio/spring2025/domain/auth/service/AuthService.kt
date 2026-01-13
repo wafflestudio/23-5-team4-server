@@ -14,14 +14,6 @@ class AuthService(
     private val redisTemplate: StringRedisTemplate,
     private val jwtBlacklistService: JwtBlacklistService,
 ) {
-    fun register(
-        email: String,
-        name: String,
-        profileImage: String?,
-    ): UserDto {
-        TODO("회원가입 도메인 로직 구현")
-    }
-
     fun socialRegister(
         // TODO
     ): UserDto {
