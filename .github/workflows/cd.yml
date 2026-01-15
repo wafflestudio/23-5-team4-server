@@ -70,7 +70,24 @@ jobs:
             docker compose logs --tail=50 app
 
       - name: Health check
-        run: |
-          echo "Waiting for deployment to stabilize..."
-          sleep 10
-          curl -f http://${{ secrets.EC2_HOST }}/actuator/health || echo "Health check pending - app may still be starting"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/app
+
+            echo "=== Waiting for app to be healthy ==="
+            for i in {1..30}; do
+              if curl -sf http://localhost/actuator/health > /dev/null 2>&1; then
+                echo "✅ App is healthy!"
+                exit 0
+              fi
+              echo "Attempt $i/30: App not ready yet, waiting 10s..."
+              sleep 10
+            done
+
+            echo "❌ App failed to start. Logs:"
+            docker compose logs --tail=100
+            exit 1
