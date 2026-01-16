@@ -1,7 +1,9 @@
 package com.wafflestudio.spring2025.domain.event.service
 
-import com.wafflestudio.spring2025.domain.event.dto.core.EventDto
 import com.wafflestudio.spring2025.domain.event.model.Event
+import com.wafflestudio.spring2025.domain.event.dto.response.EventDetailResponse
+import com.wafflestudio.spring2025.domain.event.dto.GuestPreview
+import com.wafflestudio.spring2025.domain.event.dto.MyRole
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -11,6 +13,10 @@ class EventService(
     private val eventRepository: EventRepository,
 ) {
 
+    /**
+     * 일정 생성
+     * - API 설계상 body를 비우고 201 + Location을 주기 위해 생성된 eventId를 반환
+     */
     fun create(
         title: String,
         description: String?,
@@ -19,14 +25,16 @@ class EventService(
         endAt: Instant?,
         capacity: Int?,
         waitlistEnabled: Boolean,
+        registrationStart: Instant?,
         registrationDeadline: Instant?,
         createdBy: Long,
-    ): EventDto {
+    ): Long {
         validateCreateOrUpdate(
             title = title,
             startAt = startAt,
             endAt = endAt,
             capacity = capacity,
+            registrationStart = registrationStart,
             registrationDeadline = registrationDeadline,
         )
 
@@ -38,37 +46,52 @@ class EventService(
             endAt = endAt,
             capacity = capacity,
             waitlistEnabled = waitlistEnabled,
+            registrationStart = registrationStart,
             registrationDeadline = registrationDeadline,
             createdBy = createdBy,
         )
 
         val saved = eventRepository.save(event)
-        return EventDto(saved)
+        return requireNotNull(saved.id) { "Saved event id is null" }
     }
 
-    fun getById(eventId: Long): EventDto {
-        val event = eventRepository.findById(eventId)
+    /**
+     * 일정 상세 조회
+     * - registrations 도메인 붙기 전: participants/waiting/guests는 기본값으로 내려줌
+     */
+    fun getDetail(eventId: Long, requesterId: Long): EventDetailResponse {
+        val event: Event = eventRepository.findById(eventId)
             .orElseThrow { NoSuchElementException("Event not found: $eventId") }
-        return EventDto(event)
+
+        val myRole = when {
+            event.createdBy == requesterId -> MyRole.CREATOR
+            else -> MyRole.NONE // TODO: registrations 붙으면 PARTICIPANT 판단
+        }
+
+        return EventDetailResponse(
+            title = event.title,
+            description = event.description,
+            location = event.location,
+            startAt = event.startAt,
+            endAt = event.endAt,
+            capacity = event.capacity,
+            currentParticipants = 0,           // TODO: registrations count로 채우기
+            registrationStart = event.registrationStart,
+            registrationDeadline = event.registrationDeadline,
+            myRole = myRole,
+            waitingNum = null,                // TODO: 내 대기 순번 계산
+            guestsPreview = emptyList(),       // TODO: 상위 N명(예: 4명) 미리보기
+        )
     }
 
-    fun getByCreator(createdBy: Long): List<EventDto> {
+    fun getById(eventId: Long): Event {
+        return eventRepository.findById(eventId)
+            .orElseThrow { NoSuchElementException("Event not found: $eventId") }
+    }
+
+    fun getByCreator(createdBy: Long): List<Event> {
         return eventRepository.findByCreatedByOrderByStartAtDesc(createdBy)
-            .map { EventDto(it) }
     }
-
-//    fun getUpcomingEvents(limit: Int = 3): List<EventDto> {
-//        if (limit <= 0) return emptyList()
-//
-//        val now = Instant.now()
-//
-//        val events = when (limit) {
-//            3 -> eventRepository.findTop3ByStartAtAfterOrderByStartAtAsc(now)
-//            else -> eventRepository.findByStartAtAfterOrderByStartAtAsc(now).take(limit)
-//        }
-//
-//        return events.map { EventDto(it) }
-//    }
 
     fun update(
         eventId: Long,
@@ -79,12 +102,13 @@ class EventService(
         endAt: Instant?,
         capacity: Int?,
         waitlistEnabled: Boolean?,
+        registrationStart: Instant?,
         registrationDeadline: Instant?,
-    ): EventDto {
+    ): Event {
         val event = eventRepository.findById(eventId)
             .orElseThrow { NoSuchElementException("Event not found: $eventId") }
 
-        // UpdateEventRequest에서 null은 "변경 없음"이라는 의미로 해석
+        // null은 "변경 없음"
         title?.let {
             require(it.isNotBlank()) { "title must not be blank" }
             event.title = it.trim()
@@ -95,6 +119,7 @@ class EventService(
         endAt?.let { event.endAt = it }
         capacity?.let { event.capacity = it }
         waitlistEnabled?.let { event.waitlistEnabled = it }
+        registrationStart?.let { event.registrationStart = it }
         registrationDeadline?.let { event.registrationDeadline = it }
 
         // 변경 후에도 도메인 규칙 검증
@@ -103,11 +128,11 @@ class EventService(
             startAt = event.startAt,
             endAt = event.endAt,
             capacity = event.capacity,
+            registrationStart = event.registrationStart,
             registrationDeadline = event.registrationDeadline,
         )
 
-        val saved = eventRepository.save(event)
-        return EventDto(saved)
+        return eventRepository.save(event)
     }
 
     fun delete(eventId: Long) {
@@ -117,36 +142,12 @@ class EventService(
         eventRepository.deleteById(eventId)
     }
 
-    fun registerUser(
-        eventId: Long,
-        userId: Long?,
-    ) {
-        // registrations 도메인(모델/레포지토리)이 필요해서 여기만으로 구현 불가
-        // 보통 흐름:
-        // 1) 이벤트 존재 확인
-        // 2) 마감(registrationDeadline) 체크
-        // 3) capacity/waitlist 정책 적용
-        // 4) registrations insert (userId 또는 guest)
-        TODO("registrations 도메인 연동 후 구현")
-    }
-
-    fun unregisterUser(
-        eventId: Long,
-        registrationId: Long,
-    ) {
-        // registrations 도메인(모델/레포지토리)이 필요해서 여기만으로 구현 불가
-        // 보통 흐름:
-        // 1) 이벤트 존재 확인
-        // 2) registration 조회(해당 이벤트의 신청인지 확인)
-        // 3) status 변경 또는 delete
-        TODO("registrations 도메인 연동 후 구현")
-    }
-
     private fun validateCreateOrUpdate(
         title: String,
         startAt: Instant?,
         endAt: Instant?,
         capacity: Int?,
+        registrationStart: Instant?,
         registrationDeadline: Instant?,
     ) {
         require(title.isNotBlank()) { "title must not be blank" }
@@ -155,14 +156,29 @@ class EventService(
             require(startAt.isBefore(endAt)) { "startAt must be before endAt" }
         }
 
+        if (capacity != null) {
+            require(capacity > 0) { "capacity must be positive" }
+        }
+
+        // registrationStart / registrationDeadline 관계
+        if (registrationStart != null && registrationDeadline != null) {
+            require(!registrationStart.isAfter(registrationDeadline)) {
+                "registrationStart must be <= registrationDeadline"
+            }
+        }
+
+        // registrationDeadline <= startAt (기존 룰 유지)
         if (registrationDeadline != null && startAt != null) {
             require(!registrationDeadline.isAfter(startAt)) {
                 "registrationDeadline must be <= startAt"
             }
         }
 
-        if (capacity != null) {
-            require(capacity > 0) { "capacity must be positive" }
+        // (선택) registrationStart <= startAt 도 같이 강제하면 더 자연스러움
+        if (registrationStart != null && startAt != null) {
+            require(!registrationStart.isAfter(startAt)) {
+                "registrationStart must be <= startAt"
+            }
         }
     }
 }
