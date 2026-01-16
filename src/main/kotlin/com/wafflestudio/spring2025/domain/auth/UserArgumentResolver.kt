@@ -22,9 +22,7 @@ class UserArgumentResolver(
         webRequest: NativeWebRequest,
         binderFactory: WebDataBinderFactory?,
     ): User? {
-        runCatching {
-            val username = webRequest.getAttribute("email", 0) as String
-            userRepository.findByEmail(email)
-        }.getOrNull()
+        val userId = webRequest.getAttribute("userId", 0) as? Long ?: return null
+        return userRepository.findById(userId).orElse(null)
     }
 }
