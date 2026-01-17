@@ -49,24 +49,3 @@ data class EventDetailResponse(
     @Schema(description = "참여자 미리보기 목록")
     val guestsPreview: List<GuestPreview>,
 )
-
-/**
- * 요청자 역할
- */
-enum class MyRole {
-    CREATOR,
-    PARTICIPANT,
-    NONE,
-}
-
-/**
- * 참여자 미리보기 정보
- */
-data class GuestPreview(
-    @Schema(description = "참여자 ID", example = "1")
-    val id: Long,
-    @Schema(description = "참여자 이름", example = "홍길동")
-    val name: String,
-    @Schema(description = "프로필 이미지 URL", example = "https://...")
-    val profileImage: String?,
-)
