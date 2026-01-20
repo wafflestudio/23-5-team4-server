@@ -131,7 +131,7 @@ class RegistrationService(
         val guests =
             registrationRepository
                 .findByEventId(eventId)
-                .filter { it.status != RegistrationStatus.CANCELED }
+                .filter { it.status == RegistrationStatus.CONFIRMED }
                 .map { registration ->
                     val user = registration.userId?.let { userId -> userRepository.findById(userId).orElse(null) }
                     Guest(
@@ -142,7 +142,20 @@ class RegistrationService(
                     )
                 }
 
-        return RegistrationGuestsResponse(guests)
+        val confirmedCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
+                .toInt()
+        val waitingCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
+                .toInt()
+
+        return RegistrationGuestsResponse(
+            guests = guests,
+            confirmedCount = confirmedCount,
+            waitingCount = waitingCount,
+        )
     }
 
     fun getByUserId(userId: Long): List<RegistrationDto> =

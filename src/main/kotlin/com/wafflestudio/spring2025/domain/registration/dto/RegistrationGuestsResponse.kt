@@ -5,8 +5,14 @@ import io.swagger.v3.oas.annotations.media.Schema
 
 @Schema(description = "이벤트 참여자 명단 응답")
 data class RegistrationGuestsResponse(
-    @Schema(description = "참여자 목록")
+    @Schema(description = "확정 참여자 목록")
     val guests: List<Guest>,
+    @JsonProperty("confirmed_count")
+    @Schema(description = "확정 참여자 수")
+    val confirmedCount: Int,
+    @JsonProperty("waiting_count")
+    @Schema(description = "대기 참여자 수")
+    val waitingCount: Int,
 ) {
     @Schema(description = "참여자 정보")
     data class Guest(
