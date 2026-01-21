@@ -197,7 +197,10 @@ class EventService(
         return eventRepository.save(event)
     }
 
-    fun delete(eventId: Long, requesterId: Long) {
+    fun delete(
+        eventId: Long,
+        requesterId: Long,
+    ) {
         val event =
             eventRepository
                 .findById(eventId)
@@ -209,11 +212,16 @@ class EventService(
         eventRepository.deleteById(eventId)
     }
 
-    private fun requireCreator(event: Event, requesterId: Long) {
+    private fun requireCreator(
+        event: Event,
+        requesterId: Long,
+    ) {
         if (event.createdBy != requesterId) {
             // 프로젝트에 맞는 예외가 있으면 그걸로 교체 (예: ForbiddenException)
-            throw IllegalAccessException("Only creator can modify/delete this event." +
-                    " requesterId=$requesterId")
+            throw IllegalAccessException(
+                "Only creator can modify/delete this event." +
+                    " requesterId=$requesterId",
+            )
         }
     }
 

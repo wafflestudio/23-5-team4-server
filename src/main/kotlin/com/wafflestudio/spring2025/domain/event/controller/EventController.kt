@@ -3,8 +3,8 @@ package com.wafflestudio.spring2025.domain.event.controller
 import com.wafflestudio.spring2025.domain.auth.LoggedInUser
 import com.wafflestudio.spring2025.domain.event.dto.request.CreateEventRequest
 import com.wafflestudio.spring2025.domain.event.dto.request.UpdateEventRequest
-import com.wafflestudio.spring2025.domain.event.dto.response.UpdateEventResponse
 import com.wafflestudio.spring2025.domain.event.dto.response.EventDetailResponse
+import com.wafflestudio.spring2025.domain.event.dto.response.UpdateEventResponse
 import com.wafflestudio.spring2025.domain.event.service.EventService
 import com.wafflestudio.spring2025.domain.user.model.User
 import io.swagger.v3.oas.annotations.Operation
@@ -74,7 +74,7 @@ class EventController(
         @LoggedInUser user: User,
         @PathVariable eventId: Long,
         @RequestBody request: UpdateEventRequest,
-    ): ResponseEntity<UpdateEventResponse> {   // 변경
+    ): ResponseEntity<UpdateEventResponse> { // 변경
         val event =
             eventService.update(
                 eventId = eventId,
