@@ -149,13 +149,6 @@ class EventService(
         )
     }
 
-    fun getById(eventId: Long): Event =
-        eventRepository
-            .findById(eventId)
-            .orElseThrow { NoSuchElementException("Event not found: $eventId") }
-
-    fun getByCreator(createdBy: Long): List<Event> = eventRepository.findByCreatedByOrderByStartAtDesc(createdBy)
-
     fun update(
         eventId: Long,
         title: String?,
@@ -167,11 +160,15 @@ class EventService(
         waitlistEnabled: Boolean?,
         registrationStart: Instant?,
         registrationDeadline: Instant?,
+        requesterId: Long,
     ): Event {
         val event =
             eventRepository
                 .findById(eventId)
                 .orElseThrow { NoSuchElementException("Event not found: $eventId") }
+
+        // 생성자 권한 체크
+        requireCreator(event, requesterId)
 
         // null은 "변경 없음"
         title?.let {
@@ -200,11 +197,24 @@ class EventService(
         return eventRepository.save(event)
     }
 
-    fun delete(eventId: Long) {
-        if (!eventRepository.existsById(eventId)) {
-            throw NoSuchElementException("Event not found: $eventId")
-        }
+    fun delete(eventId: Long, requesterId: Long) {
+        val event =
+            eventRepository
+                .findById(eventId)
+                .orElseThrow { NoSuchElementException("Event not found: $eventId") }
+
+        // 생성자 권한 체크
+        requireCreator(event, requesterId)
+
         eventRepository.deleteById(eventId)
+    }
+
+    private fun requireCreator(event: Event, requesterId: Long) {
+        if (event.createdBy != requesterId) {
+            // 프로젝트에 맞는 예외가 있으면 그걸로 교체 (예: ForbiddenException)
+            throw IllegalAccessException("Only creator can modify/delete this event." +
+                    " requesterId=$requesterId")
+        }
     }
 
     private fun validateCreateOrUpdate(
