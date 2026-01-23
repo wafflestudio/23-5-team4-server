@@ -252,21 +252,24 @@ class EventService(
         }
 
         // registrationStart / registrationDeadline 관계
-        if (registrationStart != null && registrationDeadline != null &&
+        if (registrationStart != null &&
+            registrationDeadline != null &&
             registrationStart.isAfter(registrationDeadline)
         ) {
             throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
         }
 
         // registrationDeadline <= startAt
-        if (registrationDeadline != null && startAt != null &&
+        if (registrationDeadline != null &&
+            startAt != null &&
             registrationDeadline.isAfter(startAt)
         ) {
             throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
         }
 
         // registrationStart <= startAt
-        if (registrationStart != null && startAt != null &&
+        if (registrationStart != null &&
+            startAt != null &&
             registrationStart.isAfter(startAt)
         ) {
             throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
