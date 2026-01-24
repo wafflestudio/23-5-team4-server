@@ -1,9 +1,10 @@
 package com.wafflestudio.spring2025.domain.event.controller
 
 import com.wafflestudio.spring2025.domain.auth.LoggedInUser
-import com.wafflestudio.spring2025.domain.event.dto.CreateEventRequest
-import com.wafflestudio.spring2025.domain.event.dto.UpdateEventRequest
-import com.wafflestudio.spring2025.domain.event.dto.core.EventDto
+import com.wafflestudio.spring2025.domain.event.dto.request.CreateEventRequest
+import com.wafflestudio.spring2025.domain.event.dto.request.UpdateEventRequest
+import com.wafflestudio.spring2025.domain.event.dto.response.EventDetailResponse
+import com.wafflestudio.spring2025.domain.event.dto.response.UpdateEventResponse
 import com.wafflestudio.spring2025.domain.event.service.EventService
 import com.wafflestudio.spring2025.domain.user.model.User
 import io.swagger.v3.oas.annotations.Operation
@@ -17,52 +18,89 @@ import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.net.URI
 
 @RestController
-@RequestMapping("/api/v1/events")
+@RequestMapping("/api/events")
 @Tag(name = "Event", description = "이벤트 관리 API")
 class EventController(
     private val eventService: EventService,
 ) {
     @Operation(summary = "이벤트 생성", description = "새로운 이벤트를 생성합니다")
-    @PostMapping
+    @PostMapping // POST /api/events
     fun create(
         @LoggedInUser user: User,
         @RequestBody request: CreateEventRequest,
-    ): ResponseEntity<EventDto> {
-        TODO("이벤트 생성 API 구현")
-    }
+    ): ResponseEntity<Void> {
+        val publicId: String =
+            eventService.create(
+                title = request.title,
+                description = request.description,
+                location = request.location,
+                startAt = request.startAt,
+                endAt = request.endAt,
+                capacity = request.capacity,
+                registrationStart = request.registrationStart,
+                registrationDeadline = request.registrationDeadline,
+                waitlistEnabled = request.waitlistEnabled,
+                createdBy = user.id!!,
+            )
 
-    @Operation(summary = "이벤트 목록 조회", description = "작성자 기준 이벤트 목록을 조회합니다")
-    @GetMapping
-    fun list(
-        @LoggedInUser user: User,
-    ): ResponseEntity<List<EventDto>> {
-        TODO("이벤트 목록 조회 API 구현")
+        return ResponseEntity
+            .created(URI.create("/api/events/$publicId"))
+            .build()
     }
 
     @Operation(summary = "이벤트 상세 조회", description = "이벤트 상세 정보를 조회합니다")
-    @GetMapping("/{eventId}")
+    @GetMapping("/{publicId}") // GET /api/events/{publicId}
     fun getById(
-        @PathVariable eventId: Long,
-    ): ResponseEntity<EventDto> {
-        TODO("이벤트 상세 조회 API 구현")
+        @LoggedInUser user: User,
+        @PathVariable publicId: String,
+    ): ResponseEntity<EventDetailResponse> {
+        val response =
+            eventService.getDetail(
+                publicId = publicId,
+                requesterId = user.id!!,
+            )
+        return ResponseEntity.ok(response)
     }
 
     @Operation(summary = "이벤트 수정", description = "이벤트를 수정합니다")
-    @PutMapping("/{eventId}")
+    @PutMapping("/{publicId}") // PUT /api/events/{publicId}
     fun update(
-        @PathVariable eventId: Long,
+        @LoggedInUser user: User,
+        @PathVariable publicId: String,
         @RequestBody request: UpdateEventRequest,
-    ): ResponseEntity<EventDto> {
-        TODO("이벤트 수정 API 구현")
+    ): ResponseEntity<UpdateEventResponse> {
+        val event =
+            eventService.update(
+                publicId = publicId,
+                title = request.title,
+                description = request.description,
+                location = request.location,
+                startAt = request.startAt,
+                endAt = request.endAt,
+                capacity = request.capacity,
+                waitlistEnabled = request.waitlistEnabled,
+                registrationStart = request.registrationStart,
+                registrationDeadline = request.registrationDeadline,
+                requesterId = user.id!!,
+            )
+
+        val response = UpdateEventResponse.from(event)
+        return ResponseEntity.ok(response)
     }
 
     @Operation(summary = "이벤트 삭제", description = "이벤트를 삭제합니다")
-    @DeleteMapping("/{eventId}")
+    @DeleteMapping("/{publicId}") // DELETE /api/events/{publicId}
     fun delete(
-        @PathVariable eventId: Long,
+        @LoggedInUser user: User,
+        @PathVariable publicId: String,
     ): ResponseEntity<Unit> {
-        TODO("이벤트 삭제 API 구현")
+        eventService.delete(
+            publicId = publicId,
+            requesterId = user.id!!,
+        )
+        return ResponseEntity.noContent().build()
     }
 }
