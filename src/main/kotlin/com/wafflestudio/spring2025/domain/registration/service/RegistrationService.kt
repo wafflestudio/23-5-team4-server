@@ -12,8 +12,8 @@ import com.wafflestudio.spring2025.domain.registration.RegistrationNotFoundExcep
 import com.wafflestudio.spring2025.domain.registration.RegistrationUnauthorizedException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongEmailException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameException
-import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationDto
@@ -212,12 +212,14 @@ class RegistrationService(
         status: RegistrationStatus,
     ): PatchRegistrationResponse {
         val registration =
-            registrationRepository.findById(registrationId)
+            registrationRepository
+                .findById(registrationId)
                 .orElseThrow { RegistrationNotFoundException() }
         val eventId = registration.eventId
 
         val eventHostId =
-            eventRepository.findById(eventId)
+            eventRepository
+                .findById(eventId)
                 .orElseThrow { EventNotFoundException() }
                 .createdBy
 
@@ -332,6 +334,7 @@ class RegistrationService(
         }
         cancelWithToken(registration.id ?: throw RegistrationNotFoundException(), token)
     }
+
     private fun hashToken(token: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(token.toByteArray(StandardCharsets.UTF_8))

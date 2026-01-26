@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/registrations/{registrationId}")
-@Tag(name="", description = "이벤트 신청 관리자 API")
+@Tag(name = "", description = "이벤트 신청 관리자 API")
 class RegistrationHostController(
     private val registrationService: RegistrationService,
 ) {
@@ -27,10 +27,10 @@ class RegistrationHostController(
         @RequestBody request: UpdateRegistrationStatusRequest,
         @LoggedInUser user: User,
     ): ResponseEntity<PatchRegistrationResponse> {
-
         val userId = user.id ?: throw UserIdentityNotFoundException()
-        val status = request.status?.toRegistrationStatus()
-            ?: throw RegistrationInvalidStatusException()
+        val status =
+            request.status?.toRegistrationStatus()
+                ?: throw RegistrationInvalidStatusException()
         val response = registrationService.updateStatusByHost(userId, registrationId, status)
 
         return ResponseEntity.ok(response)
