@@ -46,6 +46,13 @@ class RegistrationWrongEmailException :
         msg = "Wrong guest email",
     )
 
+class RegistrationInvalidStatusException :
+    RegistrationException(
+        errorCode = 1004,
+        httpStatusCode = HttpStatus.BAD_REQUEST,
+        msg = "Invalid registration status",
+    )
+
 class RegistrationInvalidTokenException :
     RegistrationException(
         errorCode = 0,

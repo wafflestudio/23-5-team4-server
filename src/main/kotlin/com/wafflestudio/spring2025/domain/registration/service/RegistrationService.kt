@@ -6,11 +6,13 @@ import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyCanceledException
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyExistsException
+import com.wafflestudio.spring2025.domain.registration.RegistrationInvalidStatusException
 import com.wafflestudio.spring2025.domain.registration.RegistrationInvalidTokenException
 import com.wafflestudio.spring2025.domain.registration.RegistrationNotFoundException
 import com.wafflestudio.spring2025.domain.registration.RegistrationUnauthorizedException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongEmailException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameException
+import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
@@ -204,6 +206,60 @@ class RegistrationService(
         }
     }
 
+    fun updateStatusByHost(
+        userId: Long,
+        registrationId: Long,
+        status: RegistrationStatus,
+    ): PatchRegistrationResponse {
+        val registration =
+            registrationRepository.findById(registrationId)
+                .orElseThrow { RegistrationNotFoundException() }
+        val eventId = registration.eventId
+
+        val eventHostId =
+            eventRepository.findById(eventId)
+                .orElseThrow { EventNotFoundException() }
+                .createdBy
+
+        if (userId != eventHostId) {
+            throw RegistrationUnauthorizedException()
+        }
+
+        val wasConfirmed = registration.status == RegistrationStatus.CONFIRMED
+        when (status) {
+            RegistrationStatus.BANNED -> {
+                if (registration.status != RegistrationStatus.BANNED) {
+                    registration.status = RegistrationStatus.BANNED
+                    registrationRepository.save(registration)
+                }
+            }
+
+            RegistrationStatus.CANCELED -> {
+                if (registration.status == RegistrationStatus.BANNED) {
+                    throw RegistrationInvalidStatusException()
+                }
+                if (registration.status == RegistrationStatus.CANCELED) {
+                    throw RegistrationAlreadyCanceledException()
+                }
+                registration.status = RegistrationStatus.CANCELED
+                registrationRepository.save(registration)
+            }
+
+            else -> throw RegistrationInvalidStatusException()
+        }
+
+        if (wasConfirmed) {
+            reconcileWaitlist(eventId)
+        }
+
+        val patchEmail =
+            registration.userId?.let { id ->
+                userRepository.findById(id).orElse(null)?.email
+            } ?: registration.guestEmail
+
+        return PatchRegistrationResponse(patchEmail = patchEmail)
+    }
+
     fun update(): Unit = throw UnsupportedOperationException("참여 신청 내 투표 수정은 나중에 구현")
 
     fun confirm(registrationId: Long) {
@@ -276,7 +332,6 @@ class RegistrationService(
         }
         cancelWithToken(registration.id ?: throw RegistrationNotFoundException(), token)
     }
-
     private fun hashToken(token: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(token.toByteArray(StandardCharsets.UTF_8))
