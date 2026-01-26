@@ -4,7 +4,7 @@ CREATE TABLE registrations (
     event_id BIGINT NOT NULL,
     guest_name VARCHAR(100) NULL,
     guest_email VARCHAR(255) NULL,
-    status ENUM('CONFIRMED', 'WAITING', 'CANCELED') NOT NULL,
+    status ENUM('HOST', 'CONFIRMED', 'WAITING', 'CANCELED', 'BANNED') NOT NULL,
     created_at DATETIME(6) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT fk_registrations_user
