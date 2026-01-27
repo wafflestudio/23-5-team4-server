@@ -65,6 +65,19 @@ class EventController(
         return ResponseEntity.ok(response)
     }
 
+    @Operation(summary = "내가 만든 이벤트 목록 조회", description = "로그인된 사용자가 생성한 이벤트 목록을 페이지네이션으로 조회합니다")
+    @GetMapping("/me")
+    fun getMyEvents(
+        @LoggedInUser user: User,
+        pageable: Pageable, // ?page=0&size=20&sort=createdAt,desc
+    ): ResponseEntity<PageResponse<EventSummaryResponse>> {
+        val page = eventService.getMyEvents(createdBy = user.id!!, pageable = pageable)
+        val response =
+            PageResponse.from(page) { EventSummaryResponse.from(it) }
+
+        return ResponseEntity.ok(response)
+    }
+
     @Operation(summary = "이벤트 수정", description = "이벤트를 수정합니다")
     @PutMapping("/{publicId}") // PUT /api/events/{publicId}
     fun update(

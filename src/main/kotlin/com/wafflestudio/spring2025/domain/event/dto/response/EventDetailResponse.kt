@@ -9,6 +9,7 @@ data class EventDetailResponse(
     val title: String,
     @Schema(description = "이벤트 설명", example = "일정 상세 설명...")
     val description: String?,
+
     @Schema(description = "장소", example = "서울대")
     val location: String?,
     @Schema(
@@ -21,6 +22,7 @@ data class EventDetailResponse(
         example = "2026-02-02T20:00:00Z",
     )
     val endAt: Instant?,
+
     @Schema(description = "정원", example = "10")
     val capacity: Int?,
     @Schema(description = "현재 참여 인원", example = "8")
@@ -35,6 +37,7 @@ data class EventDetailResponse(
         example = "2026-02-02T17:00:00Z",
     )
     val registrationDeadline: Instant?,
+
     @Schema(
         description = "요청자 역할",
         example = "CREATOR",

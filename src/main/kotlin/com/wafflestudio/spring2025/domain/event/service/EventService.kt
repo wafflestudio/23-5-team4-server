@@ -118,7 +118,7 @@ class EventService(
                 null
             }
 
-        // ✅ 참여자 미리보기: CONFIRMED 중 userId가 있는 애들만(예: 최대 5명)
+        // 참여자 미리보기: CONFIRMED 중 userId가 있는 애들만(예: 최대 5명)
         val confirmedRegs =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventID = eventId,
