@@ -1,9 +1,9 @@
 package com.wafflestudio.spring2025.domain.registration.service
 
 import com.wafflestudio.spring2025.common.email.service.EmailService
-import com.wafflestudio.spring2025.domain.event.EventDeadlinePassedException
-import com.wafflestudio.spring2025.domain.event.EventFullException
-import com.wafflestudio.spring2025.domain.event.EventNotFoundException
+import com.wafflestudio.spring2025.domain.event.exception.EventDeadlinePassedException
+import com.wafflestudio.spring2025.domain.event.exception.EventFullException
+import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyCanceledException
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyExistsException
@@ -133,10 +133,14 @@ class RegistrationService(
                 toEmail = recipientEmail,
                 eventTitle = event.title,
                 status = saved.status,
-                waitingNum = waitingNum,
+                waitingNum = waitingNum?.toString(),
             )
         }
-        return CreateRegistrationResponse(waitingNum)
+        return CreateRegistrationResponse(
+            status = toResponseStatus(saved.status),
+            waitingNum = waitingNum,
+            confirmEmail = recipientEmail,
+        )
     }
 
     private fun toResponseStatus(status: RegistrationStatus): RegistrationStatusResponse =
@@ -144,6 +148,8 @@ class RegistrationService(
             RegistrationStatus.CONFIRMED -> RegistrationStatusResponse.CONFIRMED
             RegistrationStatus.WAITING -> RegistrationStatusResponse.WAITING
             RegistrationStatus.CANCELED -> RegistrationStatusResponse.CANCELLED
+            RegistrationStatus.BANNED -> RegistrationStatusResponse.BANNED
+            RegistrationStatus.HOST -> RegistrationStatusResponse.CONFIRMED
         }
 
     fun getGuestsByEventId(
