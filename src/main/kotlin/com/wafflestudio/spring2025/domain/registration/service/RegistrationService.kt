@@ -102,7 +102,7 @@ class RegistrationService(
                     RegistrationStatus.CONFIRMED,
                     RegistrationStatus.HOST,
                     RegistrationStatus.WAITING,
-                        -> throw RegistrationAlreadyExistsException()
+                    -> throw RegistrationAlreadyExistsException()
                 }
             } else {
                 val registration =
@@ -305,7 +305,7 @@ class RegistrationService(
             RegistrationStatus.CONFIRMED,
             RegistrationStatus.HOST,
             RegistrationStatus.WAITING,
-                -> throw RegistrationInvalidStatusException()
+            -> throw RegistrationInvalidStatusException()
         }
 
         if (wasConfirmed) {
@@ -319,7 +319,6 @@ class RegistrationService(
 
         return PatchRegistrationResponse(patchEmail = patchEmail)
     }
-
 
     fun confirm(registrationId: Long) {
         val registration =

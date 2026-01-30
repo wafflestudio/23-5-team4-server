@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController
 class RegistrationController(
     private val registrationService: RegistrationService,
 ) {
-
     @Operation(
         summary = "신청 단건 상태 변경",
         description =
