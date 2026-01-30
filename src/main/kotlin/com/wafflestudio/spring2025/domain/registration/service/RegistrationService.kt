@@ -1,8 +1,9 @@
 package com.wafflestudio.spring2025.domain.registration.service
 
-import com.wafflestudio.spring2025.domain.event.exception.EventDeadlinePassedException
-import com.wafflestudio.spring2025.domain.event.exception.EventFullException
-import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
+import com.wafflestudio.spring2025.common.email.service.EmailService
+import com.wafflestudio.spring2025.domain.event.EventDeadlinePassedException
+import com.wafflestudio.spring2025.domain.event.EventFullException
+import com.wafflestudio.spring2025.domain.event.EventNotFoundException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyCanceledException
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyExistsException
@@ -38,6 +39,7 @@ class RegistrationService(
     private val eventRepository: EventRepository,
     private val registrationTokenRepository: RegistrationTokenRepository,
     private val userRepository: UserRepository,
+    private val emailService: EmailService,
 ) {
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
     private val tokenValidity = Duration.ofHours(24)
@@ -117,17 +119,22 @@ class RegistrationService(
             } else {
                 null
             }
-        val confirmEmail =
-            if (userId == null) {
-                guestEmail
-            } else {
+
+        val recipientEmail =
+            if (userId != null) {
                 userRepository.findById(userId).orElse(null)?.email
+            } else {
+                guestEmail
             }
-        return CreateRegistrationResponse(
-            status = toResponseStatus(saved.status),
-            waitingNum = waitingNum,
-            confirmEmail = confirmEmail,
-        )
+        if (!recipientEmail.isNullOrBlank()) {
+            emailService.sendRegistrationStatusEmail(
+                toEmail = recipientEmail,
+                eventTitle = event.title,
+                status = saved.status,
+                waitingNum = waitingNum,
+            )
+        }
+        return CreateRegistrationResponse(waitingNum)
     }
 
     private fun toResponseStatus(status: RegistrationStatus): RegistrationStatusResponse =
@@ -318,7 +325,21 @@ class RegistrationService(
                 RegistrationStatus.WAITING,
             )
 
-        waitings.take(available).forEach { it.status = RegistrationStatus.CONFIRMED }
-        registrationRepository.saveAll(waitings.take(available))
+        val promoted = waitings.take(available)
+        promoted.forEach { it.status = RegistrationStatus.CONFIRMED }
+        registrationRepository.saveAll(promoted)
+
+        promoted.forEach { registration ->
+            val recipientEmail =
+                registration.userId?.let { userId ->
+                    userRepository.findById(userId).orElse(null)?.email
+                } ?: registration.guestEmail
+            if (!recipientEmail.isNullOrBlank()) {
+                emailService.sendWaitlistPromotionEmail(
+                    toEmail = recipientEmail,
+                    eventTitle = event.title,
+                )
+            }
+        }
     }
 }
