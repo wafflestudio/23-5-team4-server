@@ -1,8 +1,9 @@
 package com.wafflestudio.spring2025.domain.registration.service
 
-import com.wafflestudio.spring2025.domain.event.exception.EventDeadlinePassedException
-import com.wafflestudio.spring2025.domain.event.exception.EventFullException
-import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
+import com.wafflestudio.spring2025.common.email.service.EmailService
+import com.wafflestudio.spring2025.domain.event.EventDeadlinePassedException
+import com.wafflestudio.spring2025.domain.event.EventFullException
+import com.wafflestudio.spring2025.domain.event.EventNotFoundException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyCanceledException
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyExistsException
@@ -16,6 +17,7 @@ import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationRes
 import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
+import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
 import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationDto
 import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationWithEventDto
 import com.wafflestudio.spring2025.domain.registration.model.Registration
@@ -39,6 +41,7 @@ class RegistrationService(
     private val eventRepository: EventRepository,
     private val registrationTokenRepository: RegistrationTokenRepository,
     private val userRepository: UserRepository,
+    private val emailService: EmailService,
 ) {
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
     private val tokenValidity = Duration.ofHours(24)
@@ -114,12 +117,34 @@ class RegistrationService(
             if (saved.status == RegistrationStatus.WAITING) {
                 registrationRepository
                     .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
-                    .toString()
+                    .toInt()
             } else {
                 null
             }
+
+        val recipientEmail =
+            if (userId != null) {
+                userRepository.findById(userId).orElse(null)?.email
+            } else {
+                guestEmail
+            }
+        if (!recipientEmail.isNullOrBlank()) {
+            emailService.sendRegistrationStatusEmail(
+                toEmail = recipientEmail,
+                eventTitle = event.title,
+                status = saved.status,
+                waitingNum = waitingNum,
+            )
+        }
         return CreateRegistrationResponse(waitingNum)
     }
+
+    private fun toResponseStatus(status: RegistrationStatus): RegistrationStatusResponse =
+        when (status) {
+            RegistrationStatus.CONFIRMED -> RegistrationStatusResponse.CONFIRMED
+            RegistrationStatus.WAITING -> RegistrationStatusResponse.WAITING
+            RegistrationStatus.CANCELED -> RegistrationStatusResponse.CANCELLED
+        }
 
     fun getGuestsByEventId(
         eventId: Long,
@@ -360,7 +385,21 @@ class RegistrationService(
                 RegistrationStatus.WAITING,
             )
 
-        waitings.take(available).forEach { it.status = RegistrationStatus.CONFIRMED }
-        registrationRepository.saveAll(waitings.take(available))
+        val promoted = waitings.take(available)
+        promoted.forEach { it.status = RegistrationStatus.CONFIRMED }
+        registrationRepository.saveAll(promoted)
+
+        promoted.forEach { registration ->
+            val recipientEmail =
+                registration.userId?.let { userId ->
+                    userRepository.findById(userId).orElse(null)?.email
+                } ?: registration.guestEmail
+            if (!recipientEmail.isNullOrBlank()) {
+                emailService.sendWaitlistPromotionEmail(
+                    toEmail = recipientEmail,
+                    eventTitle = event.title,
+                )
+            }
+        }
     }
 }
