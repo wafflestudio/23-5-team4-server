@@ -240,14 +240,16 @@ class RegistrationService(
                 if (registration.status == RegistrationStatus.BANNED) {
                     throw RegistrationInvalidStatusException()
                 }
-                if (registration.status == RegistrationStatus.CANCELED) {
-                    break
+                if (registration.status != RegistrationStatus.CANCELED) {
+                    registration.status = RegistrationStatus.CANCELED
+                    registrationRepository.save(registration)
                 }
-                registration.status = RegistrationStatus.CANCELED
-                registrationRepository.save(registration)
             }
 
-            else -> throw RegistrationInvalidStatusException()
+            RegistrationStatus.CONFIRMED,
+            RegistrationStatus.HOST,
+            RegistrationStatus.WAITING,
+            -> throw RegistrationInvalidStatusException()
         }
 
         if (wasConfirmed) {
@@ -270,7 +272,6 @@ class RegistrationService(
                 .findById(registrationId)
                 .orElseThrow { RegistrationNotFoundException() }
         if (registration.status == RegistrationStatus.CANCELED) {
-            registrationTokenRepository.delete(registrationToken)
             return
         }
         if (registration.status == RegistrationStatus.CONFIRMED) {
