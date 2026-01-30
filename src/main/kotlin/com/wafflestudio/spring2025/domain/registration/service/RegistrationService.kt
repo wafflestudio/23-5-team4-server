@@ -15,6 +15,7 @@ import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameExce
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
+import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
 import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationDto
 import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationWithEventDto
 import com.wafflestudio.spring2025.domain.registration.model.Registration
@@ -114,7 +115,7 @@ class RegistrationService(
             if (saved.status == RegistrationStatus.WAITING) {
                 registrationRepository
                     .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
-                    .toString()
+                    .toInt()
             } else {
                 null
             }
@@ -136,6 +137,13 @@ class RegistrationService(
         return CreateRegistrationResponse(waitingNum)
     }
 
+    private fun toResponseStatus(status: RegistrationStatus): RegistrationStatusResponse =
+        when (status) {
+            RegistrationStatus.CONFIRMED -> RegistrationStatusResponse.CONFIRMED
+            RegistrationStatus.WAITING -> RegistrationStatusResponse.WAITING
+            RegistrationStatus.CANCELED -> RegistrationStatusResponse.CANCELLED
+        }
+
     fun getGuestsByEventId(
         eventId: Long,
         requesterId: Long,
@@ -148,24 +156,55 @@ class RegistrationService(
         val guests =
             registrationRepository
                 .findByEventId(eventId)
-                .filter { it.status != RegistrationStatus.CANCELED }
+                .filter { it.status == RegistrationStatus.CONFIRMED }
                 .map { registration ->
                     val user = registration.userId?.let { userId -> userRepository.findById(userId).orElse(null) }
                     Guest(
-                        id = registration.id ?: throw RegistrationNotFoundException(),
+                        registrationPublicId = registration.registrationPublicId,
                         name = user?.name ?: registration.guestName.orEmpty(),
                         email = user?.email ?: registration.guestEmail,
                         profileImage = null,
                     )
                 }
 
-        return RegistrationGuestsResponse(guests)
+        val confirmedCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
+                .toInt()
+        val waitingCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
+                .toInt()
+
+        return RegistrationGuestsResponse(
+            guests = guests,
+            confirmedCount = confirmedCount,
+            waitingCount = waitingCount,
+        )
     }
 
     fun getByUserId(userId: Long): List<RegistrationDto> =
         registrationRepository
             .findByUserId(userId)
             .map { registration -> RegistrationDto(registration) }
+
+    fun getByPublicId(
+        eventId: Long,
+        registrationPublicId: String,
+        requesterId: Long,
+    ): RegistrationDto {
+        val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
+        if (event.createdBy != requesterId) {
+            throw RegistrationUnauthorizedException()
+        }
+        val registration =
+            registrationRepository.findByRegistrationPublicId(registrationPublicId)
+                ?: throw RegistrationNotFoundException()
+        if (registration.eventId != eventId) {
+            throw RegistrationNotFoundException()
+        }
+        return RegistrationDto(registration)
+    }
 
     fun getByUserIdWithEvents(
         userId: Long,
@@ -247,6 +286,20 @@ class RegistrationService(
             reconcileWaitlist(registration.eventId)
         }
         registrationTokenRepository.delete(registrationToken)
+    }
+
+    fun cancelWithTokenByPublicId(
+        eventId: Long,
+        registrationPublicId: String,
+        token: String,
+    ) {
+        val registration =
+            registrationRepository.findByRegistrationPublicId(registrationPublicId)
+                ?: throw RegistrationNotFoundException()
+        if (registration.eventId != eventId) {
+            throw RegistrationNotFoundException()
+        }
+        cancelWithToken(registration.id ?: throw RegistrationNotFoundException(), token)
     }
 
     private fun hashToken(token: String): String {
