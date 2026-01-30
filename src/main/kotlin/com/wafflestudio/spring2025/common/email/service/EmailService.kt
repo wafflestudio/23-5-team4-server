@@ -4,9 +4,8 @@ import com.wafflestudio.spring2025.common.email.client.EmailClient
 import com.wafflestudio.spring2025.config.EmailConfig
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import org.slf4j.LoggerFactory
+import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
-import java.nio.file.Files
-import java.nio.file.Paths
 
 @Service
 class EmailService(
@@ -29,13 +28,18 @@ class EmailService(
             loadTemplate("email-verification.html")
                 .replace("{verificationUrl}", verificationUrl)
 
-        emailClient.sendEmail(
-            to = toEmail,
-            subject = "모이샤 이메일 인증",
-            htmlContent = htmlContent,
-            fromEmail = emailConfig.fromEmail,
-            fromName = emailConfig.fromName,
-        )
+        try {
+            emailClient.sendEmail(
+                to = toEmail,
+                subject = "모이샤 이메일 인증",
+                htmlContent = htmlContent,
+                fromEmail = emailConfig.fromEmail,
+                fromName = emailConfig.fromName,
+            )
+        } catch (e: Exception) {
+            // throw EmailServiceUnavailableException()
+            throw e
+        }
 
         logger.info("Verification email sent to: $toEmail")
     }
@@ -47,11 +51,8 @@ class EmailService(
      */
     private fun loadTemplate(templateName: String): String =
         try {
-            val path =
-                Paths.get(
-                    "src/main/kotlin/com/wafflestudio/spring2025/common/email/template/$templateName",
-                )
-            Files.readString(path)
+            val resource = ClassPathResource("com/wafflestudio/spring2025/common/email/template/$templateName")
+            resource.inputStream.bufferedReader().use { it.readText() }
         } catch (e: Exception) {
             logger.error("Failed to load email template: $templateName", e)
             throw IllegalStateException("Email template not found: $templateName", e)
