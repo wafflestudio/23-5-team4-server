@@ -84,8 +84,8 @@ jobs:
                 echo "✅ App is healthy!"
                 exit 0
               fi
-              echo "Attempt $i/30: App not ready yet, waiting 10s..."
-              sleep 10
+              echo "Attempt $i/30: App not ready yet, waiting 30s..."
+              sleep 30
             done
 
             echo "❌ App failed to start. Logs:"
