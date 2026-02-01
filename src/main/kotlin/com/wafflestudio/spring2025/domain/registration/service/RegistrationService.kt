@@ -1,9 +1,10 @@
 package com.wafflestudio.spring2025.domain.registration.service
 
 import com.wafflestudio.spring2025.common.email.service.EmailService
-import com.wafflestudio.spring2025.domain.event.exception.EventDeadlinePassedException
+import com.wafflestudio.spring2025.domain.event.exception.EventErrorCode
 import com.wafflestudio.spring2025.domain.event.exception.EventFullException
 import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
+import com.wafflestudio.spring2025.domain.event.exception.EventValidationException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyBannedException
 import com.wafflestudio.spring2025.domain.registration.RegistrationAlreadyCanceledException
@@ -54,113 +55,113 @@ class RegistrationService(
         guestEmail: String?,
     ): CreateRegistrationResponse {
         val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
-        val deadline = event.registrationDeadline
-        if (deadline != null && Instant.now().isAfter(deadline)) {
-            throw EventDeadlinePassedException()
-        }
-        val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
-        val currentConfirmed =
-            registrationRepository
-                .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
-                .toInt()
-
-        val status =
-            if (capacity > currentConfirmed) {
-                RegistrationStatus.CONFIRMED
-            } else if (event.waitlistEnabled) {
-                RegistrationStatus.WAITING
-            } else {
-                throw EventFullException()
-            }
-
-        val existingRegistration =
-            if (userId == null) {
-                if (guestName == null || guestName.length <= 1) {
-                    throw RegistrationWrongNameException()
-                }
-                if (guestEmail.isNullOrBlank() || !emailRegex.matches(guestEmail)) {
-                    throw RegistrationWrongEmailException()
-                }
-                registrationRepository.findByGuestEmailAndEventId(guestEmail, eventId)
-            } else {
-                registrationRepository.findByUserIdAndEventId(userId, eventId)
-            }
-
-        val saved =
-            if (existingRegistration != null) {
-                when (existingRegistration.status) {
-                    RegistrationStatus.BANNED -> throw RegistrationInvalidStatusException()
-                    RegistrationStatus.CANCELED -> {
-                        existingRegistration.status = status
-                        if (userId == null) {
-                            existingRegistration.guestName = guestName
-                            existingRegistration.guestEmail = guestEmail
-                        }
-                        registrationRepository.save(existingRegistration)
-                    }
-
-                    RegistrationStatus.CONFIRMED,
-                    RegistrationStatus.HOST,
-                    RegistrationStatus.WAITING,
-                    -> throw RegistrationAlreadyExistsException()
-                }
-            } else {
-                val registration =
-                    if (userId == null) {
-                        Registration(
-                            userId = null,
-                            eventId = eventId,
-                            guestName = guestName,
-                            guestEmail = guestEmail,
-                            status = status,
-                        )
-                    } else {
-                        Registration(
-                            userId = userId,
-                            eventId = eventId,
-                            guestName = null,
-                            guestEmail = null,
-                            status = status,
-                        )
-                    }
-                registrationRepository.save(registration)
-            }
-        val cancelToken = generateToken()
-        registrationTokenRepository.save(
-            RegistrationToken(
-                registrationId = saved.id ?: throw RegistrationNotFoundException(),
-                tokenHash = hashToken(cancelToken),
-                purpose = RegistrationTokenPurpose.CANCEL,
-            ),
-        )
-        val waitingNum =
-            if (saved.status == RegistrationStatus.WAITING) {
+        if (isRegistrationEnabled(eventId)) {
+            val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
+            val currentConfirmed =
                 registrationRepository
-                    .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
+                    .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
                     .toInt()
-            } else {
-                null
-            }
 
-        val recipientEmail =
-            if (userId != null) {
-                userRepository.findById(userId).orElse(null)?.email
-            } else {
-                guestEmail
-            }
-        if (!recipientEmail.isNullOrBlank()) {
-            emailService.sendRegistrationStatusEmail(
-                toEmail = recipientEmail,
-                eventTitle = event.title,
-                status = saved.status,
-                waitingNum = waitingNum,
+            val status =
+                if (capacity > currentConfirmed) {
+                    RegistrationStatus.CONFIRMED
+                } else if (event.waitlistEnabled) {
+                    RegistrationStatus.WAITING
+                } else {
+                    throw EventFullException()
+                }
+
+            val existingRegistration =
+                if (userId == null) {
+                    if (guestName == null || guestName.length <= 1) {
+                        throw RegistrationWrongNameException()
+                    }
+                    if (guestEmail.isNullOrBlank() || !emailRegex.matches(guestEmail)) {
+                        throw RegistrationWrongEmailException()
+                    }
+                    registrationRepository.findByGuestEmailAndEventId(guestEmail, eventId)
+                } else {
+                    registrationRepository.findByUserIdAndEventId(userId, eventId)
+                }
+
+            val saved =
+                if (existingRegistration != null) {
+                    when (existingRegistration.status) {
+                        RegistrationStatus.BANNED -> throw RegistrationInvalidStatusException()
+                        RegistrationStatus.CANCELED -> {
+                            existingRegistration.status = status
+                            if (userId == null) {
+                                existingRegistration.guestName = guestName
+                                existingRegistration.guestEmail = guestEmail
+                            }
+                            registrationRepository.save(existingRegistration)
+                        }
+
+                        RegistrationStatus.CONFIRMED,
+                        RegistrationStatus.HOST,
+                        RegistrationStatus.WAITING,
+                            -> throw RegistrationAlreadyExistsException()
+                    }
+                } else {
+                    val registration =
+                        if (userId == null) {
+                            Registration(
+                                userId = null,
+                                eventId = eventId,
+                                guestName = guestName,
+                                guestEmail = guestEmail,
+                                status = status,
+                            )
+                        } else {
+                            Registration(
+                                userId = userId,
+                                eventId = eventId,
+                                guestName = null,
+                                guestEmail = null,
+                                status = status,
+                            )
+                        }
+                    registrationRepository.save(registration)
+                }
+            val cancelToken = generateToken()
+            registrationTokenRepository.save(
+                RegistrationToken(
+                    registrationId = saved.id ?: throw RegistrationNotFoundException(),
+                    tokenHash = hashToken(cancelToken),
+                    purpose = RegistrationTokenPurpose.CANCEL,
+                ),
             )
+            val waitingNum =
+                if (saved.status == RegistrationStatus.WAITING) {
+                    registrationRepository
+                        .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
+                        .toInt()
+                } else {
+                    null
+                }
+
+            val recipientEmail =
+                if (userId != null) {
+                    userRepository.findById(userId).orElse(null)?.email
+                } else {
+                    guestEmail
+                }
+            if (!recipientEmail.isNullOrBlank()) {
+                emailService.sendRegistrationStatusEmail(
+                    toEmail = recipientEmail,
+                    eventTitle = event.title,
+                    status = saved.status,
+                    waitingNum = waitingNum,
+                )
+            }
+            return CreateRegistrationResponse(
+                status = toResponseStatus(saved.status),
+                waitingNum = waitingNum,
+                confirmEmail = recipientEmail,
+            )
+        } else {
+            throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
         }
-        return CreateRegistrationResponse(
-            status = toResponseStatus(saved.status),
-            waitingNum = waitingNum,
-            confirmEmail = recipientEmail,
-        )
     }
 
     private fun toResponseStatus(status: RegistrationStatus): RegistrationStatusResponse =
@@ -266,88 +267,77 @@ class RegistrationService(
             registrationRepository
                 .findById(registrationId)
                 .orElseThrow { RegistrationNotFoundException() }
-        val event =
-            eventRepository
-                .findById(registration.eventId)
-                .orElseThrow { EventNotFoundException() }
+        val eventId = registration.eventId
 
-        val isHost = userId == event.createdBy
-        val isRegistrant = registration.userId == userId
+        if ((isRegistrationEnabled(eventId))) {
+            val event =
+                eventRepository
+                    .findById(registration.eventId)
+                    .orElseThrow { EventNotFoundException() }
 
-        if (status == RegistrationStatus.BANNED && !isHost) {
-            throw RegistrationUnauthorizedException()
-        }
-        if (status == RegistrationStatus.CANCELED && !isHost && !isRegistrant) {
-            throw RegistrationUnauthorizedException()
-        }
+            val isHost = userId == event.createdBy
+            val isRegistrant = registration.userId == userId
 
-        val wasConfirmed = registration.status == RegistrationStatus.CONFIRMED
-        when (status) {
-            RegistrationStatus.BANNED -> {
-                if (registration.status == RegistrationStatus.BANNED) {
-                    throw RegistrationAlreadyBannedException()
-                }
-                registration.status = RegistrationStatus.BANNED
-                registrationRepository.save(registration)
+            if (status == RegistrationStatus.BANNED && !isHost) {
+                throw RegistrationUnauthorizedException()
+            }
+            if (status == RegistrationStatus.CANCELED && !isHost && !isRegistrant) {
+                throw RegistrationUnauthorizedException()
             }
 
-            RegistrationStatus.CANCELED -> {
-                if (registration.status == RegistrationStatus.BANNED) {
-                    throw RegistrationInvalidStatusException()
+            val wasConfirmed = registration.status == RegistrationStatus.CONFIRMED
+            when (status) {
+                RegistrationStatus.BANNED -> {
+                    if (registration.status == RegistrationStatus.BANNED) {
+                        throw RegistrationAlreadyBannedException()
+                    }
+                    registration.status = RegistrationStatus.BANNED
+                    registrationRepository.save(registration)
                 }
-                if (registration.status == RegistrationStatus.CANCELED) {
-                    throw RegistrationAlreadyCanceledException()
+
+                RegistrationStatus.CANCELED -> {
+                    if (registration.status == RegistrationStatus.BANNED) {
+                        throw RegistrationInvalidStatusException()
+                    }
+                    if (registration.status == RegistrationStatus.CANCELED) {
+                        throw RegistrationAlreadyCanceledException()
+                    }
+                    registration.status = RegistrationStatus.CANCELED
+                    registrationRepository.save(registration)
                 }
-                registration.status = RegistrationStatus.CANCELED
-                registrationRepository.save(registration)
+
+                RegistrationStatus.CONFIRMED,
+                RegistrationStatus.HOST,
+                RegistrationStatus.WAITING,
+                    -> throw RegistrationInvalidStatusException()
             }
 
-            RegistrationStatus.CONFIRMED,
-            RegistrationStatus.HOST,
-            RegistrationStatus.WAITING,
-            -> throw RegistrationInvalidStatusException()
+            if (wasConfirmed) {
+                reconcileWaitlist(registration.eventId)
+            }
+
+            val patchEmail =
+                registration.userId?.let { id ->
+                    userRepository.findById(id).orElse(null)?.email
+                } ?: registration.guestEmail
+
+            return PatchRegistrationResponse(patchEmail = patchEmail)
+        } else {
+            throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
         }
-
-        if (wasConfirmed) {
-            reconcileWaitlist(registration.eventId)
-        }
-
-        val patchEmail =
-            registration.userId?.let { id ->
-                userRepository.findById(id).orElse(null)?.email
-            } ?: registration.guestEmail
-
-        return PatchRegistrationResponse(patchEmail = patchEmail)
-    }
-
-    fun confirm(registrationId: Long) {
-        val registration =
-            registrationRepository
-                .findById(registrationId)
-                .orElseThrow { RegistrationNotFoundException() }
-        if (registration.status == RegistrationStatus.CANCELED) {
-            return
-        }
-        if (registration.status == RegistrationStatus.CONFIRMED) {
-            return
-        }
-
-        val event = eventRepository.findById(registration.eventId).orElseThrow { EventNotFoundException() }
-        val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
-        val confirmed =
-            registrationRepository.countByEventIdAndStatus(registration.eventId, RegistrationStatus.CONFIRMED)
-        if (capacity <= confirmed.toInt()) {
-            throw EventFullException()
-        }
-
-        registration.status = RegistrationStatus.CONFIRMED
-        registrationRepository.save(registration)
     }
 
     fun cancelWithToken(
         registrationId: Long,
         token: String,
     ) {
+        val registration =
+            registrationRepository
+                .findById(registrationId)
+                .orElseThrow { RegistrationNotFoundException() }
+        if (!isRegistrationEnabled(registration.eventId)) {
+            throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
+        }
         val tokenHash = hashToken(token)
         val registrationToken =
             registrationTokenRepository.findByTokenHashAndPurpose(tokenHash, RegistrationTokenPurpose.CANCEL)
@@ -361,10 +351,6 @@ class RegistrationService(
             throw RegistrationInvalidTokenException()
         }
 
-        val registration =
-            registrationRepository
-                .findById(registrationId)
-                .orElseThrow { RegistrationNotFoundException() }
         if (registration.status == RegistrationStatus.CANCELED) {
             throw RegistrationAlreadyCanceledException()
         }
@@ -377,18 +363,21 @@ class RegistrationService(
         registrationTokenRepository.delete(registrationToken)
     }
 
-    fun cancelWithTokenByPublicId(
-        eventId: Long,
-        registrationPublicId: String,
-        token: String,
-    ) {
-        val registration =
-            registrationRepository.findByRegistrationPublicId(registrationPublicId)
-                ?: throw RegistrationNotFoundException()
-        if (registration.eventId != eventId) {
-            throw RegistrationNotFoundException()
+    private fun isRegistrationEnabled(
+        eventId: Long
+    ): Boolean {
+        val event = eventRepository
+            .findById(eventId)
+            .orElseThrow{ EventNotFoundException() }
+
+        val registrationStartsAt = event.registrationStart
+        val registrationEndsAt = event.registrationDeadline
+        val now = Instant.now()
+
+        if (now.isBefore(registrationEndsAt) and now.isAfter(registrationStartsAt)){
+            return true
         }
-        cancelWithToken(registration.id ?: throw RegistrationNotFoundException(), token)
+        else return false
     }
 
     private fun hashToken(token: String): String {
@@ -401,6 +390,9 @@ class RegistrationService(
 
     @Transactional
     fun reconcileWaitlist(eventId: Long) {
+        if (!isRegistrationEnabled(eventId)) {
+            return
+        }
         val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
         val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
         val confirmed = registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
