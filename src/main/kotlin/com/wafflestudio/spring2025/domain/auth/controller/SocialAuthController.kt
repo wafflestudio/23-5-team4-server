@@ -1,8 +1,8 @@
 package com.wafflestudio.spring2025.domain.auth.controller
 
-import com.wafflestudio.spring2025.domain.auth.dto.LoginRequest
 import com.wafflestudio.spring2025.domain.auth.dto.LoginResponse
 import com.wafflestudio.spring2025.domain.auth.dto.SocialLoginRequest
+import com.wafflestudio.spring2025.domain.auth.model.SocialProvider
 import com.wafflestudio.spring2025.domain.auth.service.SocialAuthService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -23,15 +23,17 @@ class SocialAuthController(
         value = [
             ApiResponse(responseCode = "200", description = "소셜 로그인 성공"),
             ApiResponse(responseCode = "401", description = "인증 실패"),
-        ]
+        ],
     )
     @PostMapping("/social")
-    fun social(
+    suspend fun social(
         @RequestBody socialLoginRequest: SocialLoginRequest,
     ): ResponseEntity<LoginResponse> {
-        socialAuthService.socialLogin(
-            provider = socialLoginRequest.provider,
-            code = socialLoginRequest.code
-        )
+        val response =
+            socialAuthService.socialLogin(
+                provider = SocialProvider.valueOf(socialLoginRequest.provider),
+                code = socialLoginRequest.code,
+            )
+        return ResponseEntity.ok(response)
     }
 }
