@@ -21,6 +21,13 @@ email:
 sendgrid:
   api-key: ${SENDGRID_API_KEY}
 
+oauth:
+  providers:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect_uri: ${GOOGLE_REDIRECT_URI}
+
 logging:
   level:
     org:
