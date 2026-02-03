@@ -56,3 +56,9 @@ management:
 
 cors:
   allowed-origins: http://localhost:3000,http://localhost:5173
+
+aws:
+  s3:
+    bucket: waffle-team4-web-temp
+    region: ap-northeast-2
+    presign-expire-seconds: 300

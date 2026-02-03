@@ -56,6 +56,10 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mysql")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+
+    // profile_image 업로드 관련 의존성 추가
+    implementation(platform("software.amazon.awssdk:bom:2.41.19"))
+    implementation("software.amazon.awssdk:s3")
 }
 
 kotlin {
