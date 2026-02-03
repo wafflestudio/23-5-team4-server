@@ -18,12 +18,6 @@ class AuthService(
     private val jwtTokenProvider: JwtTokenProvider,
     private val jwtBlacklistService: JwtBlacklistService,
 ) {
-    fun socialRegister(
-        // TODO
-    ): UserDto {
-        TODO("소셜 회원가입 도메인 로직 구현")
-    }
-
     fun signup(
         email: String,
         name: String,
