@@ -4,7 +4,7 @@ import java.time.Instant
 
 data class MyEventsInfiniteResponse(
     val events: List<MyEventResponse>,
-    val nextCursor: Instant?,  // 다음 요청용
+    val nextCursor: Instant?, // 다음 요청용
     val hasNext: Boolean,
 )
 

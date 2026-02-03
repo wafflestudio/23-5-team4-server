@@ -1,9 +1,9 @@
 package com.wafflestudio.spring2025.domain.event.repository
 
 import com.wafflestudio.spring2025.domain.event.model.Event
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.ListCrudRepository
 import java.time.Instant
-import org.springframework.data.domain.Pageable
 
 interface EventRepository : ListCrudRepository<Event, Long> {
     fun findByPublicId(publicId: String): Event?

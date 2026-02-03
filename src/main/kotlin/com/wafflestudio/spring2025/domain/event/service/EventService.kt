@@ -1,8 +1,14 @@
 package com.wafflestudio.spring2025.domain.event.service
 
+import com.wafflestudio.spring2025.domain.event.dto.response.CapabilitiesInfo
+import com.wafflestudio.spring2025.domain.event.dto.response.CreatorInfo
 import com.wafflestudio.spring2025.domain.event.dto.response.EventDetailResponse
+import com.wafflestudio.spring2025.domain.event.dto.response.EventInfo
 import com.wafflestudio.spring2025.domain.event.dto.response.GuestPreview
+import com.wafflestudio.spring2025.domain.event.dto.response.MyEventResponse
 import com.wafflestudio.spring2025.domain.event.dto.response.MyEventsInfiniteResponse
+import com.wafflestudio.spring2025.domain.event.dto.response.ViewerInfo
+import com.wafflestudio.spring2025.domain.event.dto.response.ViewerStatus
 import com.wafflestudio.spring2025.domain.event.exception.EventErrorCode
 import com.wafflestudio.spring2025.domain.event.exception.EventForbiddenException
 import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
@@ -12,17 +18,11 @@ import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.util.UUID
-import com.wafflestudio.spring2025.domain.event.dto.response.MyEventResponse
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
-import com.wafflestudio.spring2025.domain.event.dto.response.CapabilitiesInfo
-import com.wafflestudio.spring2025.domain.event.dto.response.CreatorInfo
-import com.wafflestudio.spring2025.domain.event.dto.response.EventInfo
-import com.wafflestudio.spring2025.domain.event.dto.response.ViewerInfo
-import com.wafflestudio.spring2025.domain.event.dto.response.ViewerStatus
 
 @Service
 class EventService(
@@ -83,9 +83,10 @@ class EventService(
     ): EventDetailResponse {
         val event = getEventByPublicId(publicId)
 
-        val eventId = requireNotNull(event.id) {
-            "Event internal id is null: publicId=$publicId"
-        }
+        val eventId =
+            requireNotNull(event.id) {
+                "Event internal id is null: publicId=$publicId"
+            }
 
         // creator 조회
         val creatorUser =
@@ -122,22 +123,24 @@ class EventService(
                     )
                 val idx = waitings.indexOfFirst { it.id == myReg.id }
                 if (idx >= 0) idx + 1 else null
-            } else null
+            } else {
+                null
+            }
 
         // viewer.status 결정
         val viewerStatus: ViewerStatus =
             when {
                 requesterId == event.createdBy -> ViewerStatus.HOST
                 myReg == null -> ViewerStatus.NONE
-                else -> when (myReg.status) {
-                    RegistrationStatus.HOST -> ViewerStatus.HOST
-                    RegistrationStatus.CONFIRMED -> ViewerStatus.CONFIRMED
-                    RegistrationStatus.WAITING -> ViewerStatus.WAITLISTED
-                    RegistrationStatus.CANCELED -> ViewerStatus.CANCELLED
-                    RegistrationStatus.BANNED -> ViewerStatus.BANNED
-                }
+                else ->
+                    when (myReg.status) {
+                        RegistrationStatus.HOST -> ViewerStatus.HOST
+                        RegistrationStatus.CONFIRMED -> ViewerStatus.CONFIRMED
+                        RegistrationStatus.WAITING -> ViewerStatus.WAITLISTED
+                        RegistrationStatus.CANCELED -> ViewerStatus.CANCELLED
+                        RegistrationStatus.BANNED -> ViewerStatus.BANNED
+                    }
             }
-
 
         val isGuest = myReg?.userId == null && myReg != null
         val viewer =
@@ -160,7 +163,6 @@ class EventService(
                 registrationStart = event.registrationStart,
                 registrationDeadline = event.registrationDeadline,
             )
-
 
         // guestsPreview: CONFIRMED 중 userId 있는 회원만 최대 5명
         val confirmedRegs =
@@ -259,16 +261,18 @@ class EventService(
 //                    ).toInt()
 
                 val confirmedCnt =
-                    registrationRepository.countByEventIdAndStatus(
-                        eventID = eventId,
-                        registrationStatus = RegistrationStatus.CONFIRMED,
-                    ).toInt()
+                    registrationRepository
+                        .countByEventIdAndStatus(
+                            eventID = eventId,
+                            registrationStatus = RegistrationStatus.CONFIRMED,
+                        ).toInt()
 
                 val waitingCnt =
-                    registrationRepository.countByEventIdAndStatus(
-                        eventID = eventId,
-                        registrationStatus = RegistrationStatus.WAITING,
-                    ).toInt()
+                    registrationRepository
+                        .countByEventIdAndStatus(
+                            eventID = eventId,
+                            registrationStatus = RegistrationStatus.WAITING,
+                        ).toInt()
 
                 MyEventResponse(
                     publicId = event.publicId,
@@ -289,7 +293,6 @@ class EventService(
             hasNext = hasNext,
         )
     }
-
 
     fun update(
         publicId: String,
@@ -422,7 +425,7 @@ class EventService(
         // 신청 가능 시간(window) 판단
         val withinWindow =
             (registrationStart?.let { !now.isBefore(it) } ?: true) &&
-                    (registrationDeadline?.let { !now.isAfter(it) } ?: true)
+                (registrationDeadline?.let { !now.isAfter(it) } ?: true)
 
         // 정원 판단: HOST + CONFIRMED 기준
         val isFull =
@@ -462,8 +465,6 @@ class EventService(
                     apply = false,
                     cancel = false,
                 )
-
         }
     }
-
 }
