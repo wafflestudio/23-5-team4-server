@@ -16,14 +16,12 @@ import com.wafflestudio.spring2025.domain.registration.RegistrationUnauthorizedE
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongEmailException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameException
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
-import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationDto
-import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationWithEventDto
-import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.model.Registration
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationToken
