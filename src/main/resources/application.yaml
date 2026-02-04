@@ -69,3 +69,12 @@ aws:
     bucket: waffle-team4-web-temp
     region: ap-northeast-2
     presign-expire-seconds: 300
+  allowed-origins: >
+    http://localhost:3000,
+    http://localhost:5173,
+    https://www.moiming.app,
+    https://moiming.app,
+    https://api.moiming.app
+
+server:
+  forward-headers-strategy: framework
