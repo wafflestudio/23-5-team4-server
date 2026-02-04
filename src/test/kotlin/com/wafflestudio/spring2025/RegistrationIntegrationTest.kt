@@ -102,10 +102,9 @@ class RegistrationIntegrationTest
                         .queryParam("size", "1")
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].event.id").value(event2.id))
-                .andExpect(jsonPath("$[0].event.title").value(event2.title))
-                .andExpect(jsonPath("$[0].registration.userId").value(user.id))
+                .andExpect(jsonPath("$.registrations.length()").value(1))
+                .andExpect(jsonPath("$.registrations[0].title").value(event2.title))
+                .andExpect(jsonPath("$.registrations[0].publicId").value(event2.publicId))
         }
 
         @Test
@@ -137,7 +136,7 @@ class RegistrationIntegrationTest
                     CreateRegistrationResponse::class.java,
                 )
 
-            assertThat(response2.status.name).isEqualTo("WAITING")
+            assertThat(response2.status.name).isEqualTo("WAITLISTED")
             assertThat(response2.waitingNum).isEqualTo(1)
             assertThat(response2.confirmEmail).isEqualTo("guest4b@example.com")
         }

@@ -16,14 +16,13 @@ import com.wafflestudio.spring2025.domain.registration.RegistrationUnauthorizedE
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongEmailException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameException
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.EventRegistrationItem
-import com.wafflestudio.spring2025.domain.registration.dto.GetEventRegistrationsResponse
+import com.wafflestudio.spring2025.domain.registration.dto.GetMyRegistrationsResponse
+import com.wafflestudio.spring2025.domain.registration.dto.GetRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
-import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationDto
-import com.wafflestudio.spring2025.domain.registration.dto.core.RegistrationWithEventDto
 import com.wafflestudio.spring2025.domain.registration.model.Registration
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationToken
@@ -68,7 +67,7 @@ class RegistrationService(
                 if (capacity > currentConfirmed) {
                     RegistrationStatus.CONFIRMED
                 } else if (event.waitlistEnabled) {
-                    RegistrationStatus.WAITING
+                    RegistrationStatus.WAITLISTED
                 } else {
                     throw EventFullException()
                 }
@@ -101,7 +100,7 @@ class RegistrationService(
 
                         RegistrationStatus.CONFIRMED,
                         RegistrationStatus.HOST,
-                        RegistrationStatus.WAITING,
+                        RegistrationStatus.WAITLISTED,
                         -> throw RegistrationAlreadyExistsException()
                     }
                 } else {
@@ -134,9 +133,9 @@ class RegistrationService(
                 ),
             )
             val waitingNum =
-                if (saved.status == RegistrationStatus.WAITING) {
+                if (saved.status == RegistrationStatus.WAITLISTED) {
                     registrationRepository
-                        .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
+                        .countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED)
                         .toInt()
                 } else {
                     null
@@ -170,7 +169,7 @@ class RegistrationService(
         when (status) {
             RegistrationStatus.HOST -> RegistrationStatusResponse.CONFIRMED
             RegistrationStatus.CONFIRMED -> RegistrationStatusResponse.CONFIRMED
-            RegistrationStatus.WAITING -> RegistrationStatusResponse.WAITING
+            RegistrationStatus.WAITLISTED -> RegistrationStatusResponse.WAITLISTED
             RegistrationStatus.CANCELED -> RegistrationStatusResponse.CANCELLED
             RegistrationStatus.BANNED -> RegistrationStatusResponse.BANNED
         }
@@ -204,7 +203,7 @@ class RegistrationService(
                 .toInt()
         val waitingCount =
             registrationRepository
-                .countByEventIdAndStatus(eventId, RegistrationStatus.WAITING)
+                .countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED)
                 .toInt()
 
         return RegistrationGuestsResponse(
@@ -214,38 +213,15 @@ class RegistrationService(
         )
     }
 
-    fun getByUserId(userId: Long): List<RegistrationDto> =
-        registrationRepository
-            .findByUserId(userId)
-            .map { registration -> RegistrationDto(registration) }
-
-    fun getByPublicId(
-        eventId: Long,
-        registrationPublicId: String,
-        requesterId: Long,
-    ): RegistrationDto {
-        val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
-        if (event.createdBy != requesterId) {
-            throw RegistrationUnauthorizedException()
-        }
-        val registration =
-            registrationRepository.findByRegistrationPublicId(registrationPublicId)
-                ?: throw RegistrationNotFoundException()
-        if (registration.eventId != eventId) {
-            throw RegistrationNotFoundException()
-        }
-        return RegistrationDto(registration)
-    }
-
-    fun getByUserIdWithEvents(
+    fun getMyRegistrations(
         userId: Long,
         page: Int,
         size: Int,
-    ): List<RegistrationWithEventDto> {
+    ): GetMyRegistrationsResponse {
         val registrations = registrationRepository.findByUserIdOrderByCreatedAtDesc(userId)
         val paged = registrations.drop(page * size).take(size)
         if (paged.isEmpty()) {
-            return emptyList()
+            return GetMyRegistrationsResponse(registrations = emptyList())
         }
 
         val eventIds = paged.map { it.eventId }.distinct()
@@ -254,10 +230,45 @@ class RegistrationService(
                 event.id ?: throw EventNotFoundException()
             }
 
-        return paged.map { registration ->
-            val event = eventsById[registration.eventId] ?: throw EventNotFoundException()
-            RegistrationWithEventDto(registration, event)
-        }
+        val countsByEventId =
+            eventIds.associateWith { eventId ->
+                val confirmed =
+                    registrationRepository
+                        .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
+                        .toInt()
+                val waiting =
+                    registrationRepository
+                        .countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED)
+                        .toInt()
+                confirmed + waiting
+            }
+
+        val waitingsByEventId =
+            eventIds.associateWith { eventId ->
+                registrationRepository
+                    .findByEventIdAndStatusOrderByCreatedAtAsc(eventId, RegistrationStatus.WAITLISTED)
+            }
+
+        val items =
+            paged.map { registration ->
+                val event = eventsById[registration.eventId] ?: throw EventNotFoundException()
+                val waitingNum =
+                    if (registration.status == RegistrationStatus.WAITLISTED) {
+                        val waitingList = waitingsByEventId[registration.eventId].orEmpty()
+                        val index = waitingList.indexOfFirst { it.id == registration.id }
+                        if (index >= 0) index + 1 else null
+                    } else {
+                        0
+                    }
+                MyRegistrationItem(
+                    registration = registration,
+                    event = event,
+                    registrationCnt = countsByEventId[registration.eventId] ?: 0,
+                    waitingNum = waitingNum,
+                )
+            }
+
+        return GetMyRegistrationsResponse(registrations = items)
     }
 
     fun updateStatus(
@@ -310,7 +321,7 @@ class RegistrationService(
 
                 RegistrationStatus.CONFIRMED,
                 RegistrationStatus.HOST,
-                RegistrationStatus.WAITING,
+                RegistrationStatus.WAITLISTED,
                 -> throw RegistrationInvalidStatusException()
             }
 
@@ -471,6 +482,44 @@ class RegistrationService(
         registrationTokenRepository.delete(registrationToken)
     }
 
+    fun getRegistrationInformation(
+        registrationId: Long,
+        userId: Long,
+    ): GetRegistrationResponse {
+        val registration =
+            registrationRepository
+                .findById(registrationId)
+                .orElseThrow { RegistrationNotFoundException() }
+
+        if (userId != registration.userId) throw RegistrationUnauthorizedException()
+
+        val status = registration.status
+        val waitlistPosition =
+            if (status == RegistrationStatus.WAITLISTED) {
+                val waitings =
+                    registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
+                        registration.eventId,
+                        RegistrationStatus.WAITLISTED,
+                    )
+                val idx = waitings.indexOfFirst { it.id == registration.id }
+                if (idx >= 0) idx + 1 else 0
+            } else {
+                0
+            }
+
+        val reservationEmail =
+            registration.userId?.let { userId ->
+                userRepository.findById(userId).orElse(null)?.email
+            } ?: registration.guestEmail
+
+        return GetRegistrationResponse(
+            status = status,
+            waitlistPosition = waitlistPosition,
+            registrationPublicId = registration.registrationPublicId,
+            reservationEmail = reservationEmail.orEmpty(),
+        )
+    }
+
     private fun isRegistrationEnabled(eventId: Long): Boolean {
         val event =
             eventRepository
@@ -511,7 +560,7 @@ class RegistrationService(
         val waitings =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventId,
-                RegistrationStatus.WAITING,
+                RegistrationStatus.WAITLISTED,
             )
 
         val promoted = waitings.take(available)
