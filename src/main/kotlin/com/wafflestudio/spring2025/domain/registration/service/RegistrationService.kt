@@ -16,8 +16,8 @@ import com.wafflestudio.spring2025.domain.registration.RegistrationUnauthorizedE
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongEmailException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameException
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.GetMyRegistrationsResponse
+import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
