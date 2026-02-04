@@ -16,6 +16,8 @@ import com.wafflestudio.spring2025.domain.registration.RegistrationUnauthorizedE
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongEmailException
 import com.wafflestudio.spring2025.domain.registration.RegistrationWrongNameException
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.EventRegistrationItem
+import com.wafflestudio.spring2025.domain.registration.dto.GetEventRegistrationsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.GetMyRegistrationsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.GetRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
@@ -361,7 +363,7 @@ class RegistrationService(
 
         val waitings =
             registrations
-                .filter { it.status == RegistrationStatus.WAITING }
+                .filter { it.status == RegistrationStatus.WAITLISTED }
                 .sortedBy { it.createdAt }
         val waitingIndexById =
             waitings
@@ -380,7 +382,7 @@ class RegistrationService(
             filtered.map { registration ->
                 val user = registration.userId?.let { usersById[it] }
                 val waitingNum =
-                    if (registration.status == RegistrationStatus.WAITING) {
+                    if (registration.status == RegistrationStatus.WAITLISTED) {
                         registration.id?.let { waitingIndexById[it] }
                     } else {
                         null
@@ -433,7 +435,8 @@ class RegistrationService(
         when (status?.lowercase()) {
             null -> null
             "confirmed" -> RegistrationStatus.CONFIRMED
-            "waiting" -> RegistrationStatus.WAITING
+            "waiting" -> RegistrationStatus.WAITLISTED
+            "waitlisted" -> RegistrationStatus.WAITLISTED
             "canceled" -> RegistrationStatus.CANCELED
             "banned" -> RegistrationStatus.BANNED
             else -> throw RegistrationInvalidStatusException()

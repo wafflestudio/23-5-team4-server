@@ -30,7 +30,7 @@ data class EventRegistrationItem(
     val createdAt: Instant,
     @Schema(description = "신청 상태")
     val status: RegistrationStatus,
-    @Schema(description = "대기 순번 (status가 WAITING일 때만 아니면 null)")
+    @Schema(description = "대기 순번 (status가 WAITLISTED일 때만 아니면 null)")
     val waitingNum: Int?,
 ) {
     constructor(
