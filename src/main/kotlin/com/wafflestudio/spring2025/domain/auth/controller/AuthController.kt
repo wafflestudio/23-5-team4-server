@@ -11,16 +11,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
-import org.mindrot.jbcrypt.BCrypt
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/v1/auth", "api/auth")
+@RequestMapping("/api/auth")
 @Tag(name = "Auth", description = "인증 API")
 class AuthController(
     private val authService: AuthService,
@@ -42,16 +37,13 @@ class AuthController(
     fun signup(
         @RequestBody signupRequest: SignupRequest,
     ): ResponseEntity<Void> {
-        val passwordHash = BCrypt.hashpw(signupRequest.password, BCrypt.gensalt())
-
-//        emailVerificationService.createPendingUser(
-//            email = signupRequest.email,
-//            name = signupRequest.name,
-//            passwordHash = passwordHash,
-//        )
-
-        authService.signup(signupRequest.email, signupRequest.name, signupRequest.password, null)
-
+        // profileImage는 회원가입에서 받지 않는 정책이면 null로 고정
+        authService.signup(
+            email = signupRequest.email,
+            name = signupRequest.name,
+            password = signupRequest.password,
+            profileImage = null,
+        )
         return ResponseEntity.noContent().build()
     }
 
@@ -67,7 +59,7 @@ class AuthController(
     )
     @PostMapping("/email-verification/{verificationCode}")
     fun verifyEmail(
-        @RequestParam verificationCode: String,
+        @PathVariable verificationCode: String,
     ): ResponseEntity<Void> {
         emailVerificationService.verifyEmailAndCreateUser(verificationCode)
         return ResponseEntity.ok().build()
@@ -84,14 +76,8 @@ class AuthController(
     fun login(
         @RequestBody loginRequest: LoginRequest,
     ): ResponseEntity<LoginResponse> {
-        val token =
-            authService.login(
-                loginRequest.email,
-                loginRequest.password,
-            )
-        return ResponseEntity.ok(
-            LoginResponse(token),
-        )
+        val token = authService.login(loginRequest.email, loginRequest.password)
+        return ResponseEntity.ok(LoginResponse(token))
     }
 
     @Operation(summary = "로그아웃", description = "현재 JWT 토큰을 블랙리스트에 추가하여 로그아웃합니다")
