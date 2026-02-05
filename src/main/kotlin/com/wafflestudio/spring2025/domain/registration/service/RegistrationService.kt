@@ -296,10 +296,7 @@ class RegistrationService(
             throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
         }
 
-        val event =
-            eventRepository
-                .findById(registration.eventId)
-                .orElseThrow { EventNotFoundException() }
+        val event = eventRepository.findById(eventPk).orElseThrow { EventNotFoundException() }
 
         val isHost = userId == event.createdBy
         val isRegistrant = registration.userId == userId
@@ -339,7 +336,7 @@ class RegistrationService(
         }
 
         if (wasConfirmed) {
-            reconcileWaitlist(registration.eventId)
+            reconcileWaitlist(eventPk)
         }
 
         val patchEmail =
@@ -465,13 +462,14 @@ class RegistrationService(
         }
 
     fun cancelWithToken(
-        registrationId: Long,
+        registrationId: String,
         token: String,
     ) {
         val registration =
-            registrationRepository
-                .findById(registrationId)
-                .orElseThrow { RegistrationNotFoundException() }
+            registrationRepository.findByRegistrationPublicId(registrationId)
+                ?: throw RegistrationNotFoundException()
+
+        val registrationPk = registration.id ?: throw RegistrationNotFoundException()
 
         if (!isRegistrationEnabled(registration.eventId)) {
             throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
@@ -481,13 +479,14 @@ class RegistrationService(
         val registrationToken =
             registrationTokenRepository.findByTokenHashAndPurpose(tokenHash, RegistrationTokenPurpose.CANCEL)
                 ?: throw RegistrationInvalidTokenException()
+
         val tokenCreatedAt = registrationToken.createdAt ?: throw RegistrationInvalidTokenException()
 
         if (tokenCreatedAt.plus(tokenValidity).isBefore(Instant.now())) {
             registrationTokenRepository.delete(registrationToken)
             throw RegistrationInvalidTokenException()
         }
-        if (registrationToken.registrationId != registrationId) {
+        if (registrationToken.registrationId != registrationPk) {
             throw RegistrationInvalidTokenException()
         }
 
