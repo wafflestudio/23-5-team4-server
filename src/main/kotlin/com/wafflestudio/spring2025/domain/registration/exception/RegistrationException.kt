@@ -6,12 +6,12 @@ open class RegistrationException(
     error: RegistrationErrorCode,
     cause: Throwable? = null,
 ) : DomainException(
-    httpErrorCode = error.httpStatusCode,
-    code = error,
-    title = error.title,
-    msg = error.message,
-    cause = cause,
-)
+        httpErrorCode = error.httpStatusCode,
+        code = error,
+        title = error.title,
+        msg = error.message,
+        cause = cause,
+    )
 
 class RegistrationNotFoundException : RegistrationException(error = RegistrationErrorCode.REGISTRATION_NOT_FOUND)
 

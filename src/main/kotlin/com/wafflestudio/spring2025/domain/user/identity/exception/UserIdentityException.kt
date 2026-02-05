@@ -6,12 +6,12 @@ open class UserIdentityException(
     error: UserIdentityErrorCode,
     cause: Throwable? = null,
 ) : DomainException(
-    httpErrorCode = error.httpStatusCode,
-    code = error,
-    title = error.title,
-    msg = error.message,
-    cause = cause,
-)
+        httpErrorCode = error.httpStatusCode,
+        code = error,
+        title = error.title,
+        msg = error.message,
+        cause = cause,
+    )
 
 class UserIdentityNotFoundException : UserIdentityException(error = UserIdentityErrorCode.USER_IDENTITY_NOT_FOUND)
 

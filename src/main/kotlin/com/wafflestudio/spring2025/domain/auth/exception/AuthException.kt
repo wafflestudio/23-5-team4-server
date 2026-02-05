@@ -6,12 +6,12 @@ open class AuthException(
     error: AuthErrorCode,
     cause: Throwable? = null,
 ) : DomainException(
-    httpErrorCode = error.httpStatusCode,
-    code = error,
-    title = error.title,
-    msg = error.message,
-    cause = cause,
-)
+        httpErrorCode = error.httpStatusCode,
+        code = error,
+        title = error.title,
+        msg = error.message,
+        cause = cause,
+    )
 
 class AuthValidationException(
     error: AuthErrorCode,

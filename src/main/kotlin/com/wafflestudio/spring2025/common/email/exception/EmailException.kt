@@ -6,11 +6,11 @@ open class EmailException(
     error: EmailErrorCode,
     cause: Throwable? = null,
 ) : DomainException(
-    httpErrorCode = error.httpStatusCode,
-    code = error,
-    title = error.title,
-    msg = error.message,
-    cause = cause,
-)
+        httpErrorCode = error.httpStatusCode,
+        code = error,
+        title = error.title,
+        msg = error.message,
+        cause = cause,
+    )
 
 class EmailServiceUnavailableException : EmailException(error = EmailErrorCode.EMAIL_SERVICE_UNAVAILABLE)

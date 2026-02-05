@@ -6,12 +6,12 @@ open class EventException(
     error: EventErrorCode,
     cause: Throwable? = null,
 ) : DomainException(
-    httpErrorCode = error.httpStatusCode,
-    code = error,
-    title = error.title,
-    msg = error.message,
-    cause = cause,
-)
+        httpErrorCode = error.httpStatusCode,
+        code = error,
+        title = error.title,
+        msg = error.message,
+        cause = cause,
+    )
 
 class EventNotFoundException : EventException(error = EventErrorCode.EVENT_NOT_FOUND)
 

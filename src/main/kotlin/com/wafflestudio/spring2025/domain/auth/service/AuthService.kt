@@ -1,9 +1,9 @@
 package com.wafflestudio.spring2025.domain.auth.service
 
+import com.wafflestudio.spring2025.domain.auth.JwtTokenProvider
 import com.wafflestudio.spring2025.domain.auth.exception.AuthErrorCode
 import com.wafflestudio.spring2025.domain.auth.exception.AuthValidationException
 import com.wafflestudio.spring2025.domain.auth.exception.LoginFailedException
-import com.wafflestudio.spring2025.domain.auth.JwtTokenProvider
 import com.wafflestudio.spring2025.domain.user.dto.core.UserDto
 import com.wafflestudio.spring2025.domain.user.identity.repository.UserIdentityRepository
 import com.wafflestudio.spring2025.domain.user.model.User

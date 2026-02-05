@@ -1,16 +1,9 @@
 package com.wafflestudio.spring2025.domain.registration.service
 
 import com.wafflestudio.spring2025.common.email.service.EmailService
-import com.wafflestudio.spring2025.domain.event.exception.EventErrorCode
 import com.wafflestudio.spring2025.domain.event.exception.EventFullException
 import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
-import com.wafflestudio.spring2025.domain.event.exception.EventValidationException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
-import com.wafflestudio.spring2025.domain.registration.exception.RegistrationConflictException
-import com.wafflestudio.spring2025.domain.registration.exception.RegistrationErrorCode
-import com.wafflestudio.spring2025.domain.registration.exception.RegistrationForbiddenException
-import com.wafflestudio.spring2025.domain.registration.exception.RegistrationNotFoundException
-import com.wafflestudio.spring2025.domain.registration.exception.RegistrationValidationException
 import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.EventRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.GetEventRegistrationsResponse
@@ -21,6 +14,11 @@ import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResp
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
+import com.wafflestudio.spring2025.domain.registration.exception.RegistrationConflictException
+import com.wafflestudio.spring2025.domain.registration.exception.RegistrationErrorCode
+import com.wafflestudio.spring2025.domain.registration.exception.RegistrationForbiddenException
+import com.wafflestudio.spring2025.domain.registration.exception.RegistrationNotFoundException
+import com.wafflestudio.spring2025.domain.registration.exception.RegistrationValidationException
 import com.wafflestudio.spring2025.domain.registration.model.Registration
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationToken
@@ -475,7 +473,8 @@ class RegistrationService(
         val registrationToken =
             registrationTokenRepository.findByTokenHashAndPurpose(tokenHash, RegistrationTokenPurpose.CANCEL)
                 ?: throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
-        val tokenCreatedAt = registrationToken.createdAt ?: throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
+        val tokenCreatedAt =
+            registrationToken.createdAt ?: throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
 
         if (tokenCreatedAt.plus(tokenValidity).isBefore(Instant.now())) {
             registrationTokenRepository.delete(registrationToken)
