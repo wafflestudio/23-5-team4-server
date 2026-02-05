@@ -2,7 +2,7 @@ package com.wafflestudio.spring2025.domain.auth.service
 
 import com.wafflestudio.spring2025.domain.auth.exception.AuthErrorCode
 import com.wafflestudio.spring2025.domain.auth.exception.AuthValidationException
-import com.wafflestudio.spring2025.domain.auth.exception.AuthenticationFailedException
+import com.wafflestudio.spring2025.domain.auth.exception.LoginFailedException
 import com.wafflestudio.spring2025.domain.auth.JwtTokenProvider
 import com.wafflestudio.spring2025.domain.user.dto.core.UserDto
 import com.wafflestudio.spring2025.domain.user.identity.repository.UserIdentityRepository
@@ -22,9 +22,9 @@ class AuthService(
         email: String,
         password: String,
     ): String {
-        val user: User = userRepository.findByEmail(email) ?: throw AuthenticationFailedException()
+        val user: User = userRepository.findByEmail(email) ?: throw LoginFailedException()
         if (BCrypt.checkpw(password, user.passwordHash).not()) {
-            throw AuthenticationFailedException()
+            throw LoginFailedException()
         }
         val accessToken = jwtTokenProvider.createToken(user.id!!)
         return accessToken

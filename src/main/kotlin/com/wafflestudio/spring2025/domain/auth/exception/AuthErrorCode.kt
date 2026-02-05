@@ -24,10 +24,10 @@ enum class AuthErrorCode(
         title = "이름 형식이 올바르지 않습니다.",
         message = "최소 두 자리 이상 입력해주세요.",
     ),
-    AUTHENTICATION_ERROR(
+    LOGIN_FAILED(
         httpStatusCode = HttpStatus.UNAUTHORIZED,
         title = "로그인에 실패하였습니다.",
-        message = "이메일과 비밀번호를 확인해 주세요."
+        message = "이메일 또는 비밀번호가 일치하지 않습니다.\n다시 확인해 주세요.",
     ),
     INVALID_VERIFICATION_CODE(
         httpStatusCode = HttpStatus.BAD_REQUEST,

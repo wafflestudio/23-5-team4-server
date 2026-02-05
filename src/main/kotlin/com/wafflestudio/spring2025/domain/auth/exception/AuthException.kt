@@ -17,9 +17,7 @@ class AuthValidationException(
     error: AuthErrorCode,
 ) : AuthException(error = error)
 
-class AuthenticationFailedException(
-    cause: Throwable? = null,
-) : AuthException(error = AuthErrorCode.AUTHENTICATION_ERROR, cause = cause)
+class LoginFailedException : AuthException(error = AuthErrorCode.LOGIN_FAILED)
 
 class AuthenticationRequiredException : AuthException(error = AuthErrorCode.AUTHENTICATION_REQUIRED)
 
