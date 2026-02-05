@@ -8,14 +8,6 @@ import java.time.Instant
 interface EventRepository : ListCrudRepository<Event, Long> {
     fun findByPublicId(publicId: String): Event?
 
-    fun existsByPublicId(publicId: String): Boolean
-
-    fun findByCreatedByOrderByStartAtDesc(createdBy: Long): List<Event>
-
-    fun findByStartAtAfterOrderByStartAtAsc(now: Instant): List<Event>
-
-    fun findTop3ByStartAtAfterOrderByStartAtAsc(now: Instant): List<Event>
-
     fun findByCreatedByAndCreatedAtIsNotNullOrderByCreatedAtDesc(
         createdBy: Long,
         pageable: Pageable,
