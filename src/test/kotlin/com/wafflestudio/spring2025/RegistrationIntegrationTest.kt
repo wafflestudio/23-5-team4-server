@@ -153,11 +153,10 @@ class RegistrationIntegrationTest
                     title = title,
                     description = null,
                     location = null,
-                    startAt = Instant.now().plusSeconds(3600),
-                    endAt = Instant.now().plusSeconds(7200),
+                    startsAt = Instant.now().plusSeconds(3600),
+                    endsAt = Instant.now().plusSeconds(7200),
                     capacity = capacity,
                     waitlistEnabled = waitlistEnabled,
-                    registrationDeadline = null,
                     createdBy = createdBy,
                 ),
             )

@@ -3,12 +3,14 @@ package com.wafflestudio.spring2025.common.email.client
 import jakarta.mail.internet.MimeMessage
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Primary
+import org.springframework.context.annotation.Profile
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Component
 
 @Primary
 @Component
+@Profile("!test")
 class JavaMailEmailClient(
     private val javaMailSender: JavaMailSender,
 ) : EmailClient {

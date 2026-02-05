@@ -1,15 +1,19 @@
 package com.wafflestudio.spring2025
 
 import com.wafflestudio.spring2025.domain.auth.JwtTokenProvider
+import com.wafflestudio.spring2025.domain.user.model.PendingUser
 import com.wafflestudio.spring2025.domain.user.model.User
+import com.wafflestudio.spring2025.domain.user.repository.PendingUserRepository
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.mindrot.jbcrypt.BCrypt
 import org.springframework.stereotype.Component
+import java.time.Instant
 import java.util.UUID
 
 @Component
 class DataGenerator(
     private val userRepository: UserRepository,
+    private val pendingUserRepository: PendingUserRepository,
     private val jwtTokenProvider: JwtTokenProvider,
 ) {
     fun generateUser(): Pair<User, String> {
@@ -39,5 +43,23 @@ class DataGenerator(
             )
         val token = jwtTokenProvider.createToken(user.id!!)
         return user to token
+    }
+
+    fun generatePendingUser(
+        email: String = "pending-${UUID.randomUUID()}@example.com",
+        name: String = "user",
+        password: String = "testPassword123",
+        expiresAt: Instant = Instant.now().plusSeconds(24 * 3600),
+    ): PendingUser {
+        val verificationCode = UUID.randomUUID().toString()
+        return pendingUserRepository.save(
+            PendingUser(
+                email = email,
+                name = name,
+                passwordHash = BCrypt.hashpw(password, BCrypt.gensalt()),
+                verificationCode = verificationCode,
+                expiresAt = expiresAt,
+            ),
+        )
     }
 }
