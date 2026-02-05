@@ -4,6 +4,21 @@ spring:
     username: user
     password: somepassword
     driver-class-name: com.mysql.cj.jdbc.Driver
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
   flyway:
     enabled: true
   data:
@@ -17,6 +32,13 @@ jwt:
 
 email:
   from-name: 모이샤
+
+oauth:
+  providers:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect-uri: ${GOOGLE_REDIRECT_URI}
 
 logging:
   level:
@@ -41,3 +63,18 @@ management:
 
 cors:
   allowed-origins: http://localhost:3000,http://localhost:5173
+
+aws:
+  s3:
+    bucket: waffle-team4-web-temp
+    region: ap-northeast-2
+    presign-expire-seconds: 300
+  allowed-origins: >
+    http://localhost:3000,
+    http://localhost:5173,
+    https://www.moiming.app,
+    https://moiming.app,
+    https://api.moiming.app
+
+server:
+  forward-headers-strategy: framework

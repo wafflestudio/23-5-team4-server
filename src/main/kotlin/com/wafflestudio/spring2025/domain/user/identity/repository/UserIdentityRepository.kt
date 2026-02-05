@@ -10,4 +10,6 @@ interface UserIdentityRepository : ListCrudRepository<UserIdentity, Long> {
     ): UserIdentity?
 
     fun findByUserId(userId: Long): List<UserIdentity>
+
+    fun findByProviderUserId(providerId: String): List<UserIdentity>
 }

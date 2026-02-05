@@ -1,4 +1,4 @@
-package com.wafflestudio.spring2025.domain.user.identity.model
+package com.wafflestudio.spring2025.domain.auth.model
 
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.Id
@@ -8,12 +8,12 @@ import java.time.Instant
 
 @Table("user_identities")
 class UserIdentity(
-    @Id var id: Long? = null,
+    @Id
+    var id: Long? = null,
     @Column("user_id")
     var userId: Long,
-    var provider: String,
-    @Column("provider_user_id")
-    var providerUserId: String,
+    val provider: String,
     @CreatedDate
+    @Column("created_at")
     var createdAt: Instant? = null,
 )
