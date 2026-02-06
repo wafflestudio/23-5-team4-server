@@ -361,14 +361,14 @@ class RegistrationService(
 
     fun getEventRegistration(
         eventId: String,
-        requesterId: Long,
+        requesterId: Long?,
         status: String?,
         orderBy: String?,
         cursor: Int?,
     ): GetEventRegistrationsResponse {
         val event = eventRepository.findByPublicId(eventId) ?: throw EventNotFoundException()
         val eventPk = event.id ?: throw EventNotFoundException()
-        val isAdmin = event.createdBy == requesterId
+        val isAdmin = requesterId != null && event.createdBy == requesterId
 
         val statusFilter = parseStatusFilter(status)
         val order = parseOrderBy(orderBy)
