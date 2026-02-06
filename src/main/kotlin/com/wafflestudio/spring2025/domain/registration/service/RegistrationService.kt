@@ -11,7 +11,6 @@ import com.wafflestudio.spring2025.domain.registration.dto.response.GetMyRegistr
 import com.wafflestudio.spring2025.domain.registration.dto.response.GetRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.response.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.response.PatchRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.response.RegistrationGuestsResponse
 import com.wafflestudio.spring2025.domain.registration.dto.response.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.response.RegistrationStatusResponse
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationConflictException
@@ -26,6 +25,7 @@ import com.wafflestudio.spring2025.domain.registration.model.RegistrationTokenPu
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationTokenRepository
 import com.wafflestudio.spring2025.domain.registration.service.command.CreateRegistrationCommand
+import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
