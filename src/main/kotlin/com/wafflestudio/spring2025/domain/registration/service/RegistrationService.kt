@@ -126,15 +126,6 @@ class RegistrationService(
                 registrationRepository.save(registration)
             }
 
-        val cancelToken = generateToken()
-        registrationTokenRepository.save(
-            RegistrationToken(
-                registrationId = saved.id ?: throw RegistrationNotFoundException(),
-                tokenHash = hashToken(cancelToken),
-                purpose = RegistrationTokenPurpose.CANCEL,
-            ),
-        )
-
         val waitlistedNumber: Int? =
             if (saved.status == RegistrationStatus.WAITLISTED) {
                 registrationRepository
@@ -179,7 +170,7 @@ class RegistrationService(
         }
 
         return CreateRegistrationResponse(
-            registrationPublicId = cancelToken,
+            registrationPublicId = saved.registrationPublicId,
         )
     }
 
@@ -191,47 +182,6 @@ class RegistrationService(
             RegistrationStatus.CANCELED -> RegistrationStatusResponse.CANCELED
             RegistrationStatus.BANNED -> RegistrationStatusResponse.BANNED
         }
-
-//    fun getGuestsByEventId(
-//        eventId: String,
-//        requesterId: Long,
-//    ): RegistrationGuestsResponse {
-//        val event = eventRepository.findByPublicId(eventId) ?: throw EventNotFoundException()
-//        val eventPk = event.id ?: throw EventNotFoundException()
-//        if (event.createdBy != requesterId) {
-//            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
-//        }
-//
-//        val guests =
-//            registrationRepository
-//                .findByEventId(eventPk)
-//                .filter { it.status == RegistrationStatus.CONFIRMED }
-//                .map { registration ->
-//                    val user = registration.userId?.let { userId -> userRepository.findById(userId).orElse(null) }
-//                    Guest(
-//                        registrationPublicId = registration.registrationPublicId,
-//                        name = user?.name ?: registration.guestName.orEmpty(),
-//                        email = user?.email ?: registration.guestEmail,
-//                        profileImage = null,
-//                    )
-//                }
-//
-//        val confirmedCount =
-//            registrationRepository
-//                .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
-//                .toInt()
-//
-//        val waitlistedCount =
-//            registrationRepository
-//                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
-//                .toInt()
-//
-//        return RegistrationGuestsResponse(
-//            guests = guests,
-//            confirmedCount = confirmedCount,
-//            waitingCount = waitlistedCount, // 응답 필드명이 waitingCount면 유지 (내부 변수만 waitlisted로)
-//        )
-//    }
 
     fun getMyRegistrations(
         userId: Long,
