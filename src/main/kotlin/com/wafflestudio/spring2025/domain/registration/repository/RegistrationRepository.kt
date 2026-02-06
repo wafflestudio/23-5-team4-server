@@ -29,6 +29,8 @@ interface RegistrationRepository :
         eventId: Long,
     ): Registration?
 
+    fun countByEventId(eventID: Long): Long
+
     fun countByEventIdAndStatus(
         eventID: Long,
         registrationStatus: RegistrationStatus,
@@ -65,6 +67,89 @@ interface RegistrationRepository :
         eventIds: Collection<Long>,
         status: RegistrationStatus,
     ): List<WaitlistPosition>
+
+    @Query(
+        """
+        SELECT r.*
+        FROM registrations r
+        WHERE r.event_id = :eventId
+        ORDER BY r.created_at ASC, r.registration_public_id ASC
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun findPageByEventIdOrderByCreatedAtAsc(
+        eventId: Long,
+        limit: Int,
+        offset: Int,
+    ): List<Registration>
+
+    @Query(
+        """
+        SELECT r.*
+        FROM registrations r
+        WHERE r.event_id = :eventId AND r.status = :status
+        ORDER BY r.created_at ASC, r.registration_public_id ASC
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun findPageByEventIdAndStatusOrderByCreatedAtAsc(
+        eventId: Long,
+        status: RegistrationStatus,
+        limit: Int,
+        offset: Int,
+    ): List<Registration>
+
+    @Query(
+        """
+        SELECT r.*
+        FROM registrations r
+        LEFT JOIN users u ON r.user_id = u.id
+        WHERE r.event_id = :eventId
+        ORDER BY LOWER(COALESCE(r.guest_name, u.name, '')) ASC, r.registration_public_id ASC
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun findPageByEventIdOrderByNameAsc(
+        eventId: Long,
+        limit: Int,
+        offset: Int,
+    ): List<Registration>
+
+    @Query(
+        """
+        SELECT r.*
+        FROM registrations r
+        LEFT JOIN users u ON r.user_id = u.id
+        WHERE r.event_id = :eventId AND r.status = :status
+        ORDER BY LOWER(COALESCE(r.guest_name, u.name, '')) ASC, r.registration_public_id ASC
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun findPageByEventIdAndStatusOrderByNameAsc(
+        eventId: Long,
+        status: RegistrationStatus,
+        limit: Int,
+        offset: Int,
+    ): List<Registration>
+
+    @Query(
+        """
+        SELECT ranked.registration_public_id AS registrationPublicId,
+               ranked.waitlistNumber AS waitlistNumber
+        FROM (
+            SELECT r.registration_public_id,
+                   ROW_NUMBER() OVER (ORDER BY r.created_at ASC, r.registration_public_id ASC) AS waitlistNumber
+            FROM registrations r
+            WHERE r.event_id = :eventId AND r.status = :status
+        ) ranked
+        WHERE ranked.registration_public_id IN (:registrationPublicIds)
+        """,
+    )
+    fun findWaitlistPositionsByRegistrationPublicIds(
+        eventId: Long,
+        status: RegistrationStatus,
+        registrationPublicIds: Collection<String>,
+    ): List<WaitlistPositionByPublicId>
 }
 
 data class EventRegistrationCount(
@@ -75,5 +160,10 @@ data class EventRegistrationCount(
 data class WaitlistPosition(
     val registrationPublicId: String,
     val eventId: Long,
+    val waitlistNumber: Long,
+)
+
+data class WaitlistPositionByPublicId(
+    val registrationPublicId: String,
     val waitlistNumber: Long,
 )

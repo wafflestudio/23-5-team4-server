@@ -12,7 +12,7 @@ data class GetEventRegistrationsResponse(
     val participants: List<EventRegistrationItem>,
     @Schema(description = "필터에 따라 변하는 참여자 수")
     val totalCount: Int?,
-    @Schema(description = "다음 페이지 커서 (없으면 null)")
+    @Schema(description = "다음 페이지 시작 offset (없으면 null)")
     val nextCursor: Int?,
     @Schema(description = "다음 페이지 존재 여부")
     val hasNext: Boolean,
