@@ -25,23 +25,15 @@
                     <tr>
                         <td width="48" style="vertical-align: middle;">
                             <div
-                                style="width: 48px; height: 48px; background-color: #009951; border-radius: 50%; text-align: center;">
-                                <table border="0" cellpadding="0" cellspacing="0" width="48" height="48">
+                                style="width: 48px; height: 48px; background-color: #EC221F; border-radius: 50%; text-align: center;">
+                                <table border="0" cellpadding="3" cellspacing="0" width="48" height="48">
                                     <tr>
                                         <td align="center" valign="middle" height="48" style="height: 48px;">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="#E3F2FD" stroke-width="2"
                                                 stroke-linecap="round" stroke-linejoin="round"
-                                                class="lucide lucide-loader-icon lucide-loader"
-                                                style="display: inline-block; vertical-align: middle;">
-                                                <path d="M12 2v4" />
-                                                <path d="m16.2 7.8 2.9-2.9" />
-                                                <path d="M18 12h4" />
-                                                <path d="m16.2 16.2 2.9 2.9" />
-                                                <path d="M12 18v4" />
-                                                <path d="m4.9 19.1 2.9-2.9" />
-                                                <path d="M2 12h4" />
-                                                <path d="m4.9 4.9 2.9 2.9" />
+                                                class="lucide lucide-check-icon lucide-check">
+                                                <path d="M20 6 9 17l-5-5" />
                                             </svg>
                                         </td>
                                     </tr>
@@ -51,7 +43,7 @@
                         <td
                             style="padding-left: 15px; font-size: 22px; font-weight: bold; line-height: 1.3; color: #111;">
                             안녕하세요 {name}님<br>
-                            {waitingNum}번째로 대기 완료했습니다.
+                            신청이 취소되었습니다.
                         </td>
                     </tr>
                 </table>
@@ -139,10 +131,6 @@
                     style="font-size: 16px; line-height: 1.7; color: #333; margin-bottom: 50px; white-space: wrap; word-break: break-all;">
                     {description}</div>
 
-                <a href="https://www.moiming.app/event/{publicId}?regId={registrationPublicId}"
-                    style="display: block; width: 100%; padding: 18px 0; background-color: #FEE9E7; border: 1px solid #900B09; border-radius: 10px; color: #900B09; font-size: 17px; font-weight: 600; text-align: center; text-decoration: none;">
-                    취소하기
-                </a>
             </td>
         </tr>
     </table>
