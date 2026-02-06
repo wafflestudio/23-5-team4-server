@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.wafflestudio.spring2025.domain.auth.LoggedInUser
 import com.wafflestudio.spring2025.domain.event.model.Event
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
-import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationRequest
-import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.request.CreateRegistrationRequest
+import com.wafflestudio.spring2025.domain.registration.dto.response.CreateRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationTokenRepository
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
@@ -153,11 +153,11 @@ class RegistrationIntegrationTest
                     title = title,
                     description = null,
                     location = null,
-                    startAt = Instant.now().plusSeconds(3600),
-                    endAt = Instant.now().plusSeconds(7200),
+                    startsAt = Instant.now().plusSeconds(3600),
+                    endsAt = Instant.now().plusSeconds(7200),
                     capacity = capacity,
                     waitlistEnabled = waitlistEnabled,
-                    registrationDeadline = null,
+                    registrationEndsAt = null,
                     createdBy = createdBy,
                 ),
             )

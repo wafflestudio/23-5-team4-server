@@ -1,4 +1,4 @@
-package com.wafflestudio.spring2025.domain.registration.dto
+package com.wafflestudio.spring2025.domain.registration.dto.response
 
 import com.wafflestudio.spring2025.domain.registration.model.Registration
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus

@@ -4,16 +4,16 @@ import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.domain.event.exception.EventFullException
 import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
-import com.wafflestudio.spring2025.domain.registration.dto.CreateRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.EventRegistrationItem
-import com.wafflestudio.spring2025.domain.registration.dto.GetEventRegistrationsResponse
-import com.wafflestudio.spring2025.domain.registration.dto.GetMyRegistrationsResponse
-import com.wafflestudio.spring2025.domain.registration.dto.GetRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
-import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.CreateRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.EventRegistrationItem
+import com.wafflestudio.spring2025.domain.registration.dto.response.GetEventRegistrationsResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.GetMyRegistrationsResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.GetRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.MyRegistrationItem
+import com.wafflestudio.spring2025.domain.registration.dto.response.PatchRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.RegistrationGuestsResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.RegistrationGuestsResponse.Guest
+import com.wafflestudio.spring2025.domain.registration.dto.response.RegistrationStatusResponse
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationConflictException
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationErrorCode
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationForbiddenException
@@ -25,6 +25,7 @@ import com.wafflestudio.spring2025.domain.registration.model.RegistrationToken
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationTokenPurpose
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationTokenRepository
+import com.wafflestudio.spring2025.domain.registration.service.command.CreateRegistrationCommand
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -45,7 +46,26 @@ class RegistrationService(
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
     private val tokenValidity = Duration.ofHours(24)
 
-    fun create(
+    fun create(command: CreateRegistrationCommand): CreateRegistrationResponse =
+        when (command) {
+            is CreateRegistrationCommand.Member ->
+                createInternal(
+                    userId = command.userId,
+                    eventId = command.eventId,
+                    guestName = null,
+                    guestEmail = null,
+                )
+
+            is CreateRegistrationCommand.Guest ->
+                createInternal(
+                    userId = null,
+                    eventId = command.eventId,
+                    guestName = command.name,
+                    guestEmail = command.email,
+                )
+        }
+
+    private fun createInternal(
         userId: Long?,
         eventId: String,
         guestName: String?,
