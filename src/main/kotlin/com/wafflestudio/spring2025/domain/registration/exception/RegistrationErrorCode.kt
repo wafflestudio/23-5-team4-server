@@ -23,10 +23,16 @@ enum class RegistrationErrorCode(
     ),
 
     // 31xx - Forbidden
-    REGISTRATION_UNAUTHORIZED(
+    REGISTRATION_PATCH_UNAUTHORIZED(
         httpStatusCode = HttpStatus.FORBIDDEN,
         title = "신청 상태 변경 권한이 없습니다.",
         message = "모임의 관리자 혹은 신청자 본인만\n신청 상태를 변경할 수 있습니다.",
+    ),
+
+    REGISTRATION_VIEW_UNAUTHORIZED(
+        httpStatusCode = HttpStatus.FORBIDDEN,
+        title = "열람 권한이 없습니다.",
+        message = "본인의 신청 정보만 조회할 수 있습니다.",
     ),
 
     REGISTRATION_INVALID_TOKEN(
@@ -82,6 +88,6 @@ enum class RegistrationErrorCode(
     INVALID_REGISTRATION_QUERY_PARAMETER(
         httpStatusCode = HttpStatus.BAD_REQUEST,
         title = "신청자 필터 조건이 올바르지 않습니다.",
-        message = "유효하지 않은 쿼리 파라미터 값입니다."
-    )
+        message = "유효하지 않은 쿼리 파라미터 값입니다.",
+    ),
 }

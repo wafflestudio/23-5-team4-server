@@ -62,6 +62,6 @@ enum class AuthErrorCode(
     NO_SUCH_PENDING_USER(
         httpStatusCode = HttpStatus.NOT_FOUND,
         title = "인증 요청 내역이 없습니다.",
-        message = "기존에 이메일 인증을 요청한\n이력이 없습니다."
-    )
+        message = "기존에 이메일 인증을 요청한\n이력이 없습니다.",
+    ),
 }

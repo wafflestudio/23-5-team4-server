@@ -11,8 +11,6 @@ import com.wafflestudio.spring2025.domain.registration.dto.GetMyRegistrationsRes
 import com.wafflestudio.spring2025.domain.registration.dto.GetRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationConflictException
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationErrorCode
@@ -315,10 +313,10 @@ class RegistrationService(
         val isRegistrant = registration.userId == userId
 
         if (status == RegistrationStatus.BANNED && !isHost) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_PATCH_UNAUTHORIZED)
         }
         if (status == RegistrationStatus.CANCELED && !isHost && !isRegistrant) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_PATCH_UNAUTHORIZED)
         }
 
         val wasConfirmed = registration.status == RegistrationStatus.CONFIRMED
@@ -538,9 +536,9 @@ class RegistrationService(
                 ?: throw RegistrationNotFoundException()
 
         if (user != null &&
-            user.id != registration.userId
+            user.email != registration.guestEmail
         ) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_VIEW_UNAUTHORIZED)
         }
 
         val status = registration.status
