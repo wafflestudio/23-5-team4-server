@@ -54,13 +54,8 @@ class RegistrationService(
         val event = eventRepository.findByPublicId(eventId) ?: throw EventNotFoundException()
         val eventPk = event.id ?: throw EventNotFoundException()
 
-<<<<<<< fix/registration-api-sync
         if (!isRegistrationEnabled(eventPk)) {
-            throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
-=======
-        if (!isRegistrationEnabled(eventId)) {
             throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
->>>>>>> main
         }
 
         val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
@@ -160,7 +155,7 @@ class RegistrationService(
         if (!recipientEmail.isNullOrBlank()) {
             val confirmedCount =
                 registrationRepository
-                    .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
+                    .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
                     .toInt()
 
             emailService.sendRegistrationStatusEmail(
@@ -309,13 +304,8 @@ class RegistrationService(
                 ?: throw RegistrationNotFoundException()
         val eventPk = registration.eventId
 
-<<<<<<< fix/registration-api-sync
         if (!isRegistrationEnabled(eventPk)) {
-            throw EventValidationException(EventErrorCode.EVENT_REGISTRATION_WINDOW_INVALID)
-=======
-        if (!isRegistrationEnabled(eventId)) {
             throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
->>>>>>> main
         }
 
         val event = eventRepository.findById(eventPk).orElseThrow { EventNotFoundException() }
@@ -499,28 +489,29 @@ class RegistrationService(
 
         val tokenHash = hashToken(token)
         val registrationToken =
-            registrationTokenRepository.findByTokenHashAndPurpose(tokenHash, RegistrationTokenPurpose.CANCEL)
-<<<<<<< fix/registration-api-sync
-                ?: throw RegistrationInvalidTokenException()
+            registrationTokenRepository.findByTokenHashAndPurpose(
+                tokenHash,
+                RegistrationTokenPurpose.CANCEL,
+            ) ?: throw RegistrationForbiddenException(
+                RegistrationErrorCode.REGISTRATION_INVALID_TOKEN,
+            )
 
-        val tokenCreatedAt = registrationToken.createdAt ?: throw RegistrationInvalidTokenException()
-=======
-                ?: throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
         val tokenCreatedAt =
-            registrationToken.createdAt ?: throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
->>>>>>> main
+            registrationToken.createdAt ?: throw RegistrationForbiddenException(
+                RegistrationErrorCode.REGISTRATION_INVALID_TOKEN,
+            )
 
         if (tokenCreatedAt.plus(tokenValidity).isBefore(Instant.now())) {
             registrationTokenRepository.delete(registrationToken)
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
+            throw RegistrationForbiddenException(
+                RegistrationErrorCode.REGISTRATION_INVALID_TOKEN,
+            )
         }
-<<<<<<< fix/registration-api-sync
+
         if (registrationToken.registrationId != registrationPk) {
-            throw RegistrationInvalidTokenException()
-=======
-        if (registrationToken.registrationId != registrationId) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_INVALID_TOKEN)
->>>>>>> main
+            throw RegistrationForbiddenException(
+                RegistrationErrorCode.REGISTRATION_INVALID_TOKEN,
+            )
         }
 
         if (registration.status == RegistrationStatus.CANCELED) {
