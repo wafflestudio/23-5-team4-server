@@ -45,9 +45,12 @@ class EmailVerificationService(
         validatePassword(password)
 
         val passwordHash = BCrypt.hashpw(password, BCrypt.gensalt())
-        // Check if email already exists in users or pending_users
-        if (pendingUserRepository.existsByEmail(email)) {
-            throw AccountAlreadyExistsException(AuthErrorCode.EMAIL_ACCOUNT_ALREADY_EXIST)
+        pendingUserRepository.findByEmail(email)?.let { existingPendingUser ->
+            if (Instant.now().isAfter(existingPendingUser.expiresAt)) {
+                pendingUserRepository.delete(existingPendingUser)
+            } else {
+                throw AccountAlreadyExistsException(AuthErrorCode.EMAIL_VERIFICATION_PENDING)
+            }
         }
 
         userRepository.findByEmail(email)?.let { user ->

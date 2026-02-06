@@ -34,6 +34,11 @@ enum class AuthErrorCode(
         title = "유효하지 않은 인증 코드입니다.",
         message = "유효기간이 만료되었거나 잘못된 인증코드입니다.\n이메일 회원가입을 다시 시도해 주세요.",
     ),
+    EMAIL_VERIFICATION_PENDING(
+        httpStatusCode = HttpStatus.CONFLICT,
+        title = "이메일 인증 대기 중입니다.",
+        message = "이미 인증 메일이 발송되었습니다.\n메일함을 확인하여 인증을 완료해 주세요.",
+    ),
     EMAIL_ACCOUNT_ALREADY_EXIST(
         httpStatusCode = HttpStatus.CONFLICT,
         title = "이미 회원가입된 이메일입니다.",
