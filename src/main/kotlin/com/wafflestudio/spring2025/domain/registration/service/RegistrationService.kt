@@ -19,7 +19,6 @@ import com.wafflestudio.spring2025.domain.registration.exception.RegistrationNot
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationValidationException
 import com.wafflestudio.spring2025.domain.registration.model.Registration
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
-import com.wafflestudio.spring2025.domain.registration.model.RegistrationToken
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationTokenPurpose
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationTokenRepository
@@ -126,15 +125,6 @@ class RegistrationService(
                 registrationRepository.save(registration)
             }
 
-        val cancelToken = generateToken()
-        registrationTokenRepository.save(
-            RegistrationToken(
-                registrationId = saved.id ?: throw RegistrationNotFoundException(),
-                tokenHash = hashToken(cancelToken),
-                purpose = RegistrationTokenPurpose.CANCEL,
-            ),
-        )
-
         val waitlistedNumber: Int? =
             if (saved.status == RegistrationStatus.WAITLISTED) {
                 registrationRepository
@@ -179,9 +169,7 @@ class RegistrationService(
         }
 
         return CreateRegistrationResponse(
-            status = toResponseStatus(saved.status),
-            waitingNum = waitlistedNumber,
-            confirmEmail = recipientEmail,
+            registrationPublicId = saved.registrationPublicId,
         )
     }
 
@@ -193,47 +181,6 @@ class RegistrationService(
             RegistrationStatus.CANCELED -> RegistrationStatusResponse.CANCELED
             RegistrationStatus.BANNED -> RegistrationStatusResponse.BANNED
         }
-
-//    fun getGuestsByEventId(
-//        eventId: String,
-//        requesterId: Long,
-//    ): RegistrationGuestsResponse {
-//        val event = eventRepository.findByPublicId(eventId) ?: throw EventNotFoundException()
-//        val eventPk = event.id ?: throw EventNotFoundException()
-//        if (event.createdBy != requesterId) {
-//            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
-//        }
-//
-//        val guests =
-//            registrationRepository
-//                .findByEventId(eventPk)
-//                .filter { it.status == RegistrationStatus.CONFIRMED }
-//                .map { registration ->
-//                    val user = registration.userId?.let { userId -> userRepository.findById(userId).orElse(null) }
-//                    Guest(
-//                        registrationPublicId = registration.registrationPublicId,
-//                        name = user?.name ?: registration.guestName.orEmpty(),
-//                        email = user?.email ?: registration.guestEmail,
-//                        profileImage = null,
-//                    )
-//                }
-//
-//        val confirmedCount =
-//            registrationRepository
-//                .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
-//                .toInt()
-//
-//        val waitlistedCount =
-//            registrationRepository
-//                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
-//                .toInt()
-//
-//        return RegistrationGuestsResponse(
-//            guests = guests,
-//            confirmedCount = confirmedCount,
-//            waitingCount = waitlistedCount, // 응답 필드명이 waitingCount면 유지 (내부 변수만 waitlisted로)
-//        )
-//    }
 
     fun getMyRegistrations(
         userId: Long,
@@ -555,13 +502,17 @@ class RegistrationService(
                 0
             }
 
-        val reservationEmail =
+        val registrationUser =
             registration.userId?.let { uid ->
-                userRepository.findById(uid).orElse(null)?.email
-            } ?: registration.guestEmail
+                userRepository.findById(uid).orElse(null)
+            }
+
+        val reservationEmail = registrationUser?.email ?: registration.guestEmail
+        val guestName = registrationUser?.name ?: registration.guestName
 
         return GetRegistrationResponse(
             status = status,
+            guestName = guestName.orEmpty(),
             waitlistPosition = waitlistPosition,
             registrationPublicId = registration.registrationPublicId,
             reservationEmail = reservationEmail.orEmpty(),
