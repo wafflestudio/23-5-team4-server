@@ -11,8 +11,6 @@ import com.wafflestudio.spring2025.domain.registration.dto.GetMyRegistrationsRes
 import com.wafflestudio.spring2025.domain.registration.dto.GetRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.MyRegistrationItem
 import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse
-import com.wafflestudio.spring2025.domain.registration.dto.RegistrationGuestsResponse.Guest
 import com.wafflestudio.spring2025.domain.registration.dto.RegistrationStatusResponse
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationConflictException
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationErrorCode
@@ -196,46 +194,46 @@ class RegistrationService(
             RegistrationStatus.BANNED -> RegistrationStatusResponse.BANNED
         }
 
-    fun getGuestsByEventId(
-        eventId: String,
-        requesterId: Long,
-    ): RegistrationGuestsResponse {
-        val event = eventRepository.findByPublicId(eventId) ?: throw EventNotFoundException()
-        val eventPk = event.id ?: throw EventNotFoundException()
-        if (event.createdBy != requesterId) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
-        }
-
-        val guests =
-            registrationRepository
-                .findByEventId(eventPk)
-                .filter { it.status == RegistrationStatus.CONFIRMED }
-                .map { registration ->
-                    val user = registration.userId?.let { userId -> userRepository.findById(userId).orElse(null) }
-                    Guest(
-                        registrationPublicId = registration.registrationPublicId,
-                        name = user?.name ?: registration.guestName.orEmpty(),
-                        email = user?.email ?: registration.guestEmail,
-                        profileImage = null,
-                    )
-                }
-
-        val confirmedCount =
-            registrationRepository
-                .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
-                .toInt()
-
-        val waitlistedCount =
-            registrationRepository
-                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
-                .toInt()
-
-        return RegistrationGuestsResponse(
-            guests = guests,
-            confirmedCount = confirmedCount,
-            waitingCount = waitlistedCount, // 응답 필드명이 waitingCount면 유지 (내부 변수만 waitlisted로)
-        )
-    }
+//    fun getGuestsByEventId(
+//        eventId: String,
+//        requesterId: Long,
+//    ): RegistrationGuestsResponse {
+//        val event = eventRepository.findByPublicId(eventId) ?: throw EventNotFoundException()
+//        val eventPk = event.id ?: throw EventNotFoundException()
+//        if (event.createdBy != requesterId) {
+//            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+//        }
+//
+//        val guests =
+//            registrationRepository
+//                .findByEventId(eventPk)
+//                .filter { it.status == RegistrationStatus.CONFIRMED }
+//                .map { registration ->
+//                    val user = registration.userId?.let { userId -> userRepository.findById(userId).orElse(null) }
+//                    Guest(
+//                        registrationPublicId = registration.registrationPublicId,
+//                        name = user?.name ?: registration.guestName.orEmpty(),
+//                        email = user?.email ?: registration.guestEmail,
+//                        profileImage = null,
+//                    )
+//                }
+//
+//        val confirmedCount =
+//            registrationRepository
+//                .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
+//                .toInt()
+//
+//        val waitlistedCount =
+//            registrationRepository
+//                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
+//                .toInt()
+//
+//        return RegistrationGuestsResponse(
+//            guests = guests,
+//            confirmedCount = confirmedCount,
+//            waitingCount = waitlistedCount, // 응답 필드명이 waitingCount면 유지 (내부 변수만 waitlisted로)
+//        )
+//    }
 
     fun getMyRegistrations(
         userId: Long,
@@ -315,10 +313,10 @@ class RegistrationService(
         val isRegistrant = registration.userId == userId
 
         if (status == RegistrationStatus.BANNED && !isHost) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_PATCH_UNAUTHORIZED)
         }
         if (status == RegistrationStatus.CANCELED && !isHost && !isRegistrant) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_PATCH_UNAUTHORIZED)
         }
 
         val wasConfirmed = registration.status == RegistrationStatus.CONFIRMED
@@ -464,7 +462,7 @@ class RegistrationService(
             "waiting", "waitlisted" -> RegistrationStatus.WAITLISTED
             "canceled" -> RegistrationStatus.CANCELED
             "banned" -> RegistrationStatus.BANNED
-            else -> throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_INVALID_STATUS)
+            else -> throw RegistrationValidationException(RegistrationErrorCode.INVALID_REGISTRATION_QUERY_PARAMETER)
         }
 
     private fun parseOrderBy(orderBy: String?): RegistrationOrderBy =
@@ -538,9 +536,9 @@ class RegistrationService(
                 ?: throw RegistrationNotFoundException()
 
         if (user != null &&
-            user.id != registration.userId
+            user.email != registration.guestEmail
         ) {
-            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_UNAUTHORIZED)
+            throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_VIEW_UNAUTHORIZED)
         }
 
         val status = registration.status
