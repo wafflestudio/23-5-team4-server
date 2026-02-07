@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController
 class EventRegistrationController(
     private val registrationService: RegistrationService,
 ) {
-    @Operation(
+    @Operation(ㅇㄴ
         summary = "이벤트 참여 신청",
         description =
             "특정 이벤트에 신청합니다. 정원이 남아있으면 CONFIRMED로 등록되고, 정원이 찼으나 대기 명단이 허용된 경우 WAITLISTED로 등록됩니다. " +
