@@ -8,6 +8,7 @@ import com.wafflestudio.spring2025.domain.registration.service.RegistrationServi
 import com.wafflestudio.spring2025.domain.registration.service.command.CreateRegistrationCommand
 import com.wafflestudio.spring2025.domain.user.model.User
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -64,6 +65,7 @@ class EventRegistrationController(
         @LoggedInUser user: User?,
         @RequestParam(required = false) status: String?,
         @RequestParam(required = false) orderBy: String?,
+        @Parameter(description = "다음 페이지 시작 offset (없으면 0부터)")
         @RequestParam(required = false) cursor: Int?,
     ): ResponseEntity<GetEventRegistrationsResponse> =
         ResponseEntity.ok(
