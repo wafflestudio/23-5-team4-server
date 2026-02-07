@@ -180,6 +180,11 @@ class RegistrationService(
                 registrationRepository
                     .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
                     .toInt()
+            val waitlistedCount =
+                registrationRepository
+                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
+                    .toInt()
+            val totalCount = confirmedCount + waitlistedCount
 
             val emailData =
                 EmailService.RegistrationStatusEmailData(
@@ -190,7 +195,7 @@ class RegistrationService(
                     startsAt = lockedEvent.startsAt,
                     endsAt = lockedEvent.endsAt,
                     location = lockedEvent.location,
-                    confirmedCount = confirmedCount,
+                    totalCount = totalCount,
                     capacity = lockedEvent.capacity,
                     registrationStartsAt = lockedEvent.registrationStartsAt,
                     registrationEndsAt = lockedEvent.registrationEndsAt,
@@ -572,6 +577,11 @@ class RegistrationService(
             registrationRepository
                 .countByEventIdAndStatus(event.id!!, RegistrationStatus.CONFIRMED)
                 .toInt()
+        val waitlistedCount =
+            registrationRepository
+                .countByEventIdAndStatus(event.id!!, RegistrationStatus.WAITLISTED)
+                .toInt()
+        val totalCount = confirmedCount + waitlistedCount
 
         val emailData =
             EmailService.RegistrationStatusEmailData(
@@ -582,7 +592,7 @@ class RegistrationService(
                 startsAt = event.startsAt,
                 endsAt = event.endsAt,
                 location = event.location,
-                confirmedCount = confirmedCount,
+                totalCount = totalCount,
                 capacity = event.capacity,
                 registrationStartsAt = event.registrationStartsAt,
                 registrationEndsAt = event.registrationEndsAt,
@@ -625,6 +635,8 @@ class RegistrationService(
         registrationRepository.saveAll(promoted)
 
         val confirmedAfter = confirmed + promoted.size
+        val remainingWaitlisted = waitlistedRegs.size - promoted.size
+        val totalCount = confirmedAfter + remainingWaitlisted
 
         val emailDataList =
             promoted.mapNotNull { registration ->
@@ -648,7 +660,7 @@ class RegistrationService(
                         startsAt = event.startsAt,
                         endsAt = event.endsAt,
                         location = event.location,
-                        confirmedCount = confirmedAfter,
+                        totalCount = totalCount,
                         capacity = capacity,
                         registrationStartsAt = event.registrationStartsAt,
                         registrationEndsAt = event.registrationEndsAt,
@@ -669,7 +681,7 @@ class RegistrationService(
                     startsAt = data.startsAt,
                     endsAt = data.endsAt,
                     location = data.location,
-                    confirmedCount = data.confirmedCount,
+                    totalCount = data.totalCount,
                     capacity = data.capacity,
                     registrationStartsAt = data.registrationStartsAt,
                     registrationEndsAt = data.registrationEndsAt,
@@ -689,7 +701,7 @@ class RegistrationService(
         val startsAt: Instant?,
         val endsAt: Instant?,
         val location: String?,
-        val confirmedCount: Int?,
+        val totalCount: Int?,
         val capacity: Int?,
         val registrationStartsAt: Instant?,
         val registrationEndsAt: Instant?,

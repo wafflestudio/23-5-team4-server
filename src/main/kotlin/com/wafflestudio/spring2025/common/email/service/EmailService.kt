@@ -70,7 +70,7 @@ class EmailService(
         val startsAt: Instant?,
         val endsAt: Instant?,
         val location: String?,
-        val confirmedCount: Int?,
+        val totalCount: Int?,
         val capacity: Int?,
         val registrationStartsAt: Instant?,
         val registrationEndsAt: Instant?,
@@ -90,7 +90,7 @@ class EmailService(
                         .replace("{startsAt}", formatInstant(data.startsAt))
                         .replace("{endsAt}", formatInstant(data.endsAt))
                         .replace("{location}", data.location ?: "-")
-                        .replace("{confirmedCount}", data.confirmedCount?.toString() ?: "-")
+                        .replace("{totalCount}", data.totalCount?.toString() ?: "-")
                         .replace("{capacity}", data.capacity?.toString() ?: "-")
                         .replace("{registrationStartsAt}", formatInstant(data.registrationStartsAt))
                         .replace("{registrationEndsAt}", formatInstant(data.registrationEndsAt))
@@ -118,7 +118,7 @@ class EmailService(
                         .replace("{startsAt}", formatInstant(data.startsAt))
                         .replace("{endsAt}", formatInstant(data.endsAt))
                         .replace("{location}", data.location ?: "-")
-                        .replace("{confirmedCount}", data.confirmedCount?.toString() ?: "-")
+                        .replace("{totalCount}", data.totalCount?.toString() ?: "-")
                         .replace("{capacity}", data.capacity?.toString() ?: "-")
                         .replace("{registrationStartsAt}", formatInstant(data.registrationStartsAt))
                         .replace("{registrationEndsAt}", formatInstant(data.registrationEndsAt))
@@ -144,7 +144,7 @@ class EmailService(
                         .replace("{startsAt}", formatInstant(data.startsAt))
                         .replace("{endsAt}", formatInstant(data.endsAt))
                         .replace("{location}", data.location ?: "-")
-                        .replace("{confirmedCount}", data.confirmedCount?.toString() ?: "-")
+                        .replace("{totalCount}", data.totalCount?.toString() ?: "-")
                         .replace("{capacity}", data.capacity?.toString() ?: "-")
                         .replace("{registrationStartsAt}", formatInstant(data.registrationStartsAt))
                         .replace("{registrationEndsAt}", formatInstant(data.registrationEndsAt))
@@ -168,7 +168,7 @@ class EmailService(
                         .replace("{startsAt}", formatInstant(data.startsAt))
                         .replace("{endsAt}", formatInstant(data.endsAt))
                         .replace("{location}", data.location ?: "-")
-                        .replace("{confirmedCount}", data.confirmedCount?.toString() ?: "-")
+                        .replace("{totalCount}", data.totalCount?.toString() ?: "-")
                         .replace("{capacity}", data.capacity?.toString() ?: "-")
                         .replace("{registrationStartsAt}", formatInstant(data.registrationStartsAt))
                         .replace("{registrationEndsAt}", formatInstant(data.registrationEndsAt))
@@ -198,7 +198,7 @@ class EmailService(
         startsAt: Instant?,
         endsAt: Instant?,
         location: String?,
-        confirmedCount: Int?,
+        totalCount: Int?,
         capacity: Int?,
         registrationStartsAt: Instant?,
         registrationEndsAt: Instant?,
@@ -214,7 +214,7 @@ class EmailService(
                 .replace("{startsAt}", formatInstant(startsAt))
                 .replace("{endsAt}", formatInstant(endsAt))
                 .replace("{location}", location ?: "-")
-                .replace("{confirmedCount}", confirmedCount?.toString() ?: "-")
+                .replace("{totalCount}", totalCount?.toString() ?: "-")
                 .replace("{capacity}", capacity?.toString() ?: "-")
                 .replace("{registrationStartsAt}", formatInstant(registrationStartsAt))
                 .replace("{registrationEndsAt}", formatInstant(registrationEndsAt))
