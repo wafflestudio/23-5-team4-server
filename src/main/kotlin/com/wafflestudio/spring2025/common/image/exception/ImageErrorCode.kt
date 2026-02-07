@@ -23,4 +23,9 @@ enum class ImageErrorCode(
         title = "이미지 파일 크기가 너무 큽니다.",
         message = "이미지 파일 크기는 5MB 이하로 제한되어 있습니다.",
     ),
+    IMAGE_PREFIX_NOT_ALLOWED(
+        httpStatusCode = HttpStatus.BAD_REQUEST,
+        title = "허용되지 않는 이미지 경로입니다.",
+        message = "지원하지 않는 이미지 업로드 경로입니다.",
+    ),
 }
