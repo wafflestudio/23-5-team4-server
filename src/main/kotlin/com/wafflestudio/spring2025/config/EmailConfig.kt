@@ -7,6 +7,6 @@ import org.springframework.context.annotation.Configuration
 @ConfigurationProperties(prefix = "email")
 class EmailConfig {
     var fromEmail: String = System.getenv("EMAIL_FROM_ADDRESS") ?: "noreply@example.com"
-    var fromName: String = "모이샤"
+    var fromName: String = "모이밍"
     var serviceDomain: String = System.getenv("EMAIL_SERVICE_DOMAIN") ?: "http://localhost:8080"
 }

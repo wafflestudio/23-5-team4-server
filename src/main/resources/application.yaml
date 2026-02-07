@@ -31,7 +31,7 @@ jwt:
   expiration-in-ms: 86400000
 
 email:
-  from-name: 모이샤
+  from-name: 모이밍
 
 oauth:
   providers:
