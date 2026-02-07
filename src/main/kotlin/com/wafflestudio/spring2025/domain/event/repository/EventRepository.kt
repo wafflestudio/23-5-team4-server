@@ -13,7 +13,6 @@ interface EventRepository : ListCrudRepository<Event, Long> {
         pageable: Pageable,
     ): List<Event>
 
-    // 다음 페이지: cursor 이전(더 과거)
     fun findByCreatedByAndCreatedAtIsNotNullAndCreatedAtLessThanOrderByCreatedAtDesc(
         createdBy: Long,
         cursor: Instant,

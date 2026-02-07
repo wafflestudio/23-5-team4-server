@@ -1,4 +1,4 @@
-package com.wafflestudio.spring2025.domain.registration.dto
+package com.wafflestudio.spring2025.domain.registration.dto.request
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import io.swagger.v3.oas.annotations.media.Schema

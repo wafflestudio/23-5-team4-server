@@ -1,9 +1,9 @@
 package com.wafflestudio.spring2025.domain.registration.controller
 
 import com.wafflestudio.spring2025.domain.auth.LoggedInUser
-import com.wafflestudio.spring2025.domain.registration.dto.GetRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.PatchRegistrationResponse
-import com.wafflestudio.spring2025.domain.registration.dto.UpdateRegistrationStatusRequest
+import com.wafflestudio.spring2025.domain.registration.dto.request.UpdateRegistrationStatusRequest
+import com.wafflestudio.spring2025.domain.registration.dto.response.GetRegistrationResponse
+import com.wafflestudio.spring2025.domain.registration.dto.response.PatchRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationErrorCode
 import com.wafflestudio.spring2025.domain.registration.exception.RegistrationValidationException
 import com.wafflestudio.spring2025.domain.registration.service.RegistrationService
