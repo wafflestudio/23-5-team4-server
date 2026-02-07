@@ -14,6 +14,16 @@ interface RegistrationRepository :
 
     fun findByRegistrationPublicId(registrationPublicId: String): Registration?
 
+    @Query(
+        """
+        SELECT r.*
+        FROM registrations r
+        WHERE r.registration_public_id = :registrationPublicId
+        FOR UPDATE
+        """,
+    )
+    fun lockByRegistrationPublicId(registrationPublicId: String): Registration?
+
     fun findByUserIdOrderByCreatedAtDesc(
         userId: Long,
         pageable: Pageable,

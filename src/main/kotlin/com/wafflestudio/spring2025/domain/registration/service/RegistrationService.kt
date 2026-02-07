@@ -31,6 +31,8 @@ import org.springframework.dao.DuplicateKeyException
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Duration
@@ -42,7 +44,6 @@ class RegistrationService(
     private val registrationRepository: RegistrationRepository,
     private val eventRepository: EventRepository,
     private val eventLockRepository: EventLockRepository,
-    private val registrationTokenRepository: RegistrationTokenRepository,
     private val userRepository: UserRepository,
     private val emailService: EmailService,
 ) {
@@ -79,9 +80,9 @@ class RegistrationService(
         val eventPk = event.id ?: throw EventNotFoundException()
 
         eventLockRepository.lockById(eventPk)
-        val lockedEvent: Event = event
+        val lockedEvent: Event = eventRepository.findById(eventPk).orElseThrow { EventNotFoundException() }
 
-        if (!isRegistrationEnabled(eventPk)) {
+        if (!isRegistrationEnabled(lockedEvent)) {
             throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
         }
 
@@ -182,12 +183,12 @@ class RegistrationService(
                     .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
                     .toInt()
 
-            emailService.sendRegistrationStatusEmail(
+            val emailData =
                 EmailService.RegistrationStatusEmailData(
                     toEmail = recipientEmail,
                     status = saved.status,
                     name = saved.guestName ?: user?.name ?: "참여자",
-                    eventTitle = lockedEvent.title, // ✅ lockedEvent 사용
+                    eventTitle = lockedEvent.title,
                     startsAt = lockedEvent.startsAt,
                     endsAt = lockedEvent.endsAt,
                     location = lockedEvent.location,
@@ -199,8 +200,11 @@ class RegistrationService(
                     publicId = lockedEvent.publicId,
                     registrationPublicId = saved.registrationPublicId,
                     waitingNum = waitlistedNumber,
-                ),
-            )
+                )
+
+            afterCommit {
+                emailService.sendRegistrationStatusEmail(emailData)
+            }
         }
 
         return CreateRegistrationResponse(
@@ -273,16 +277,21 @@ class RegistrationService(
         registrationId: String,
         status: RegistrationStatus,
     ): PatchRegistrationResponse {
-        val registration =
+        val registrationPreview =
             registrationRepository.findByRegistrationPublicId(registrationId)
                 ?: throw RegistrationNotFoundException()
-        val eventPk = registration.eventId
+        val eventPk = registrationPreview.eventId
 
-        if (!isRegistrationEnabled(eventPk)) {
+        eventLockRepository.lockById(eventPk)
+        val event = eventRepository.findById(eventPk).orElseThrow { EventNotFoundException() }
+
+        val registration =
+            registrationRepository.lockByRegistrationPublicId(registrationId)
+                ?: throw RegistrationNotFoundException()
+
+        if (!isRegistrationEnabled(event)) {
             throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
         }
-
-        val event = eventRepository.findById(eventPk).orElseThrow { EventNotFoundException() }
 
         val isHost = userId != null && userId == event.createdBy
         val isRegistrant = userId != null && registration.userId == userId
@@ -516,7 +525,10 @@ class RegistrationService(
             eventRepository
                 .findById(eventId)
                 .orElseThrow { EventNotFoundException() }
+        return isRegistrationEnabled(event)
+    }
 
+    private fun isRegistrationEnabled(event: Event): Boolean {
         val registrationStartsAt = event.registrationStartsAt
         val registrationEndsAt = event.registrationEndsAt
         val now = Instant.now()
@@ -538,11 +550,10 @@ class RegistrationService(
 
     @Transactional
     fun reconcileWaitlist(eventId: Long) {
-        if (!isRegistrationEnabled(eventId)) return
-
         eventLockRepository.lockById(eventId)
 
         val event: Event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
+        if (!isRegistrationEnabled(event)) return
 
         val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
         val confirmed =
@@ -567,34 +578,90 @@ class RegistrationService(
 
         val confirmedAfter = confirmed + promoted.size
 
-        promoted.forEach { registration ->
-            val user: User? =
-                registration.userId?.let { uid ->
-                    userRepository.findById(uid).orElse(null)
+        val emailDataList =
+            promoted.mapNotNull { registration ->
+                val user: User? =
+                    registration.userId?.let { uid ->
+                        userRepository.findById(uid).orElse(null)
+                    }
+
+                val recipientEmail = user?.email ?: registration.guestEmail
+                val recipientName = user?.name ?: registration.guestName ?: "참여자"
+                val waitingNum = waitlistNumbers[registration.registrationPublicId]
+
+                if (recipientEmail.isNullOrBlank()) {
+                    null
+                } else {
+                    WaitlistPromotionEmailData(
+                        toEmail = recipientEmail,
+                        eventTitle = event.title,
+                        name = recipientName,
+                        waitingNum = waitingNum,
+                        startsAt = event.startsAt,
+                        endsAt = event.endsAt,
+                        location = event.location,
+                        confirmedCount = confirmedAfter,
+                        capacity = capacity,
+                        registrationStartsAt = event.registrationStartsAt,
+                        registrationEndsAt = event.registrationEndsAt,
+                        description = event.description,
+                        eventPublicId = event.publicId,
+                        registrationPublicId = registration.registrationPublicId,
+                    )
                 }
+            }
 
-            val recipientEmail = user?.email ?: registration.guestEmail
-            val recipientName = user?.name ?: registration.guestName ?: "참여자"
-            val waitingNum = waitlistNumbers[registration.registrationPublicId]
-
-            if (!recipientEmail.isNullOrBlank()) {
+        afterCommit {
+            emailDataList.forEach { data ->
                 emailService.sendWaitlistPromotionEmail(
-                    toEmail = recipientEmail,
-                    eventTitle = event.title,
-                    name = recipientName,
-                    waitingNum = waitingNum,
-                    startsAt = event.startsAt,
-                    endsAt = event.endsAt,
-                    location = event.location,
-                    confirmedCount = confirmedAfter,
-                    capacity = capacity,
-                    registrationStartsAt = event.registrationStartsAt,
-                    registrationEndsAt = event.registrationEndsAt,
-                    description = event.description,
-                    eventPublicId = event.publicId,
-                    registrationPublicId = registration.registrationPublicId,
+                    toEmail = data.toEmail,
+                    eventTitle = data.eventTitle,
+                    name = data.name,
+                    waitingNum = data.waitingNum,
+                    startsAt = data.startsAt,
+                    endsAt = data.endsAt,
+                    location = data.location,
+                    confirmedCount = data.confirmedCount,
+                    capacity = data.capacity,
+                    registrationStartsAt = data.registrationStartsAt,
+                    registrationEndsAt = data.registrationEndsAt,
+                    description = data.description,
+                    eventPublicId = data.eventPublicId,
+                    registrationPublicId = data.registrationPublicId,
                 )
             }
         }
+    }
+
+    private data class WaitlistPromotionEmailData(
+        val toEmail: String,
+        val eventTitle: String,
+        val name: String,
+        val waitingNum: Int?,
+        val startsAt: Instant?,
+        val endsAt: Instant?,
+        val location: String?,
+        val confirmedCount: Int?,
+        val capacity: Int?,
+        val registrationStartsAt: Instant?,
+        val registrationEndsAt: Instant?,
+        val description: String?,
+        val eventPublicId: String,
+        val registrationPublicId: String,
+    )
+
+    private fun afterCommit(action: () -> Unit) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            action()
+            return
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun afterCommit() {
+                    action()
+                }
+            },
+        )
     }
 }
