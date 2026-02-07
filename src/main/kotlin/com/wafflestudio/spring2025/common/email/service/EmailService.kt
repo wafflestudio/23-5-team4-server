@@ -36,7 +36,7 @@ class EmailService(
         try {
             emailClient.sendEmail(
                 to = toEmail,
-                subject = "모이샤 이메일 인증",
+                subject = "모이밍 이메일 인증",
                 htmlContent = htmlContent,
                 fromEmail = emailConfig.fromEmail,
                 fromName = emailConfig.fromName,
@@ -100,7 +100,7 @@ class EmailService(
 
                 emailClient.sendEmail(
                     to = data.toEmail,
-                    subject = "모이샤 참여 신청 확정",
+                    subject = "모이밍 참여 신청 확정",
                     htmlContent = htmlContent,
                     fromEmail = emailConfig.fromEmail,
                     fromName = emailConfig.fromName,
@@ -128,7 +128,7 @@ class EmailService(
 
                 emailClient.sendEmail(
                     to = data.toEmail,
-                    subject = "모이샤 참여 신청 대기",
+                    subject = "모이밍 참여 신청 대기",
                     htmlContent = htmlContent,
                     fromEmail = emailConfig.fromEmail,
                     fromName = emailConfig.fromName,
@@ -152,7 +152,7 @@ class EmailService(
 
                 emailClient.sendEmail(
                     to = data.toEmail,
-                    subject = "모이샤 참여 신청 취소",
+                    subject = "모이밍 참여 신청 취소",
                     htmlContent = htmlContent,
                     fromEmail = emailConfig.fromEmail,
                     fromName = emailConfig.fromName,
@@ -176,7 +176,7 @@ class EmailService(
 
                 emailClient.sendEmail(
                     to = data.toEmail,
-                    subject = "모이샤 참여 신청 강제 취소",
+                    subject = "모이밍 참여 신청 강제 취소",
                     htmlContent = htmlContent,
                     fromEmail = emailConfig.fromEmail,
                     fromName = emailConfig.fromName,
@@ -224,7 +224,7 @@ class EmailService(
 
         emailClient.sendEmail(
             to = toEmail,
-            subject = "모이샤 참여 신청 대기 후, 확정",
+            subject = "모이밍 참여 신청 대기 후, 확정",
             htmlContent = htmlContent,
             fromEmail = emailConfig.fromEmail,
             fromName = emailConfig.fromName,
