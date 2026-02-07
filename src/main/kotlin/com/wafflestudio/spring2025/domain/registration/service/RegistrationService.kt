@@ -24,6 +24,7 @@ import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRe
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationTokenRepository
 import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.nio.charset.StandardCharsets
@@ -187,8 +188,8 @@ class RegistrationService(
         page: Int,
         size: Int,
     ): GetMyRegistrationsResponse {
-        val registrations = registrationRepository.findByUserIdOrderByCreatedAtDesc(userId)
-        val paged = registrations.drop(page * size).take(size)
+        val pageable = PageRequest.of(page, size)
+        val paged = registrationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
         if (paged.isEmpty()) {
             return GetMyRegistrationsResponse(registrations = emptyList())
         }
@@ -200,31 +201,23 @@ class RegistrationService(
             }
 
         val countsByEventId =
-            eventIds.associateWith { eventId ->
-                val confirmed =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED)
-                        .toInt()
-                val waitlisted =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED)
-                        .toInt()
-                confirmed + waitlisted
-            }
+            registrationRepository
+                .countByEventIdsAndStatuses(
+                    eventIds = eventIds,
+                    statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+                ).associate { it.eventId to it.totalCount.toInt() }
 
-        val waitlistedRegsByEventId =
-            eventIds.associateWith { eventId ->
-                registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(eventId, RegistrationStatus.WAITLISTED)
-            }
+        val waitlistedByRegistrationId =
+            registrationRepository
+                .findWaitlistPositionsByEventIds(eventIds, RegistrationStatus.WAITLISTED)
+                .associate { it.registrationPublicId to it.waitlistNumber.toInt() }
 
         val items =
             paged.map { registration ->
                 val event = eventsById[registration.eventId] ?: throw EventNotFoundException()
                 val waitlistedNumber: Int? =
                     if (registration.status == RegistrationStatus.WAITLISTED) {
-                        val waitlistedList = waitlistedRegsByEventId[registration.eventId].orEmpty()
-                        val index = waitlistedList.indexOfFirst { it.id == registration.id }
-                        if (index >= 0) index + 1 else null
+                        waitlistedByRegistrationId[registration.registrationPublicId]
                     } else {
                         null
                     }
@@ -319,23 +312,46 @@ class RegistrationService(
         val statusFilter = parseStatusFilter(status)
         val order = parseOrderBy(orderBy)
 
-        val registrations = registrationRepository.findByEventId(eventPk)
-        val filtered =
-            statusFilter?.let { filter ->
-                registrations.filter { it.status == filter }
-            } ?: registrations
+        val pageSize = 10
+        val offset = (cursor ?: 0).coerceAtLeast(0)
 
-        val waitlistedRegs =
-            registrations
-                .filter { it.status == RegistrationStatus.WAITLISTED }
-                .sortedBy { it.createdAt }
+        val totalCount =
+            statusFilter?.let {
+                registrationRepository.countByEventIdAndStatus(eventPk, it).toInt()
+            } ?: registrationRepository.countByEventId(eventPk).toInt()
 
-        val waitlistedIndexById =
-            waitlistedRegs
-                .mapIndexedNotNull { idx, reg -> reg.id?.let { id -> id to (idx + 1) } }
-                .toMap()
+        val registrationsPage =
+            when (order) {
+                RegistrationOrderBy.NAME ->
+                    statusFilter?.let {
+                        registrationRepository.findPageByEventIdAndStatusOrderByNameAsc(
+                            eventId = eventPk,
+                            status = it,
+                            limit = pageSize,
+                            offset = offset,
+                        )
+                    } ?: registrationRepository.findPageByEventIdOrderByNameAsc(
+                        eventId = eventPk,
+                        limit = pageSize,
+                        offset = offset,
+                    )
 
-        val userIds = filtered.mapNotNull { it.userId }.distinct()
+                RegistrationOrderBy.REGISTERED_AT ->
+                    statusFilter?.let {
+                        registrationRepository.findPageByEventIdAndStatusOrderByCreatedAtAsc(
+                            eventId = eventPk,
+                            status = it,
+                            limit = pageSize,
+                            offset = offset,
+                        )
+                    } ?: registrationRepository.findPageByEventIdOrderByCreatedAtAsc(
+                        eventId = eventPk,
+                        limit = pageSize,
+                        offset = offset,
+                    )
+            }
+
+        val userIds = registrationsPage.mapNotNull { it.userId }.distinct()
         val usersById =
             if (userIds.isEmpty()) {
                 emptyMap()
@@ -343,12 +359,29 @@ class RegistrationService(
                 userRepository.findAllById(userIds).associateBy { it.id!! }
             }
 
-        val items =
-            filtered.map { registration ->
+        val waitlistedPublicIds =
+            registrationsPage
+                .filter { it.status == RegistrationStatus.WAITLISTED }
+                .map { it.registrationPublicId }
+
+        val waitlistedByPublicId =
+            if (waitlistedPublicIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .findWaitlistPositionsByRegistrationPublicIds(
+                        eventId = eventPk,
+                        status = RegistrationStatus.WAITLISTED,
+                        registrationPublicIds = waitlistedPublicIds,
+                    ).associate { it.registrationPublicId to it.waitlistNumber.toInt() }
+            }
+
+        val page =
+            registrationsPage.map { registration ->
                 val user = registration.userId?.let { usersById[it] }
                 val waitlistedNumber =
                     if (registration.status == RegistrationStatus.WAITLISTED) {
-                        registration.id?.let { waitlistedIndexById[it] }
+                        waitlistedByPublicId[registration.registrationPublicId]
                     } else {
                         null
                     }
@@ -364,29 +397,8 @@ class RegistrationService(
                 if (isAdmin) item else item.copy(email = null)
             }
 
-        val sorted =
-            when (order) {
-                RegistrationOrderBy.NAME ->
-                    items.sortedWith(compareBy<EventRegistrationItem> { it.name.lowercase() }.thenBy { it.registrationId })
-
-                RegistrationOrderBy.REGISTERED_AT ->
-                    items.sortedWith(compareBy<EventRegistrationItem> { it.createdAt }.thenBy { it.registrationId })
-            }
-
-        val pageSize = 10
-        val safeCursor = cursor ?: -1
-        val startIndex = (safeCursor + 1).coerceAtLeast(0)
-        val page =
-            if (startIndex >= sorted.size) {
-                emptyList()
-            } else {
-                sorted.drop(startIndex).take(pageSize)
-            }
-
-        val lastIndex = startIndex + page.size - 1
-        val hasNext = (startIndex + page.size) < sorted.size
-        val nextCursor = if (hasNext && page.isNotEmpty()) lastIndex else null
-        val totalCount = items.size
+        val hasNext = (offset + page.size) < totalCount
+        val nextCursor = if (hasNext && page.isNotEmpty()) offset + page.size else null
 
         return GetEventRegistrationsResponse(
             participants = page,
