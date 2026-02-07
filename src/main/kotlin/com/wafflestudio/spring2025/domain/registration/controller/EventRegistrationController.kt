@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController
 class EventRegistrationController(
     private val registrationService: RegistrationService,
 ) {
-    @Operation(ㅇㄴ
+    @Operation(
         summary = "이벤트 참여 신청",
         description =
             "특정 이벤트에 신청합니다. 정원이 남아있으면 CONFIRMED로 등록되고, 정원이 찼으나 대기 명단이 허용된 경우 WAITLISTED로 등록됩니다. " +
@@ -52,18 +52,20 @@ class EventRegistrationController(
     @GetMapping
     fun list(
         @PathVariable eventId: String,
-        @LoggedInUser user: User?,
+        @LoggedInUser user: User,
         @RequestParam(required = false) status: String?,
         @RequestParam(required = false) orderBy: String?,
         @RequestParam(required = false) cursor: Int?,
-    ): ResponseEntity<GetEventRegistrationsResponse> =
-        ResponseEntity.ok(
+    ): ResponseEntity<GetEventRegistrationsResponse> {
+        val userId = requireNotNull(user.id) { "로그인 사용자 ID가 없습니다." }
+        return ResponseEntity.ok(
             registrationService.getEventRegistration(
                 eventId = eventId,
-                requesterId = user?.id,
+                requesterId = userId,
                 status = status,
                 orderBy = orderBy,
                 cursor = cursor,
             ),
         )
+    }
 }
