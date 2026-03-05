@@ -8,6 +8,7 @@ import com.wafflestudio.spring2025.domain.user.dto.PatchMeResponse
 import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.service.UserService
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -40,5 +41,13 @@ class UserController(
             profileImage = request.profileImage,
         )
         return ResponseEntity.ok(userService.me(user))
+    }
+
+    @DeleteMapping("/me")
+    fun deleteMe(
+        @Parameter(hidden = true) @LoggedInUser user: User,
+    ): ResponseEntity<Void> {
+        userService.deleteMe(user = user)
+        return ResponseEntity.ok().build()
     }
 }
