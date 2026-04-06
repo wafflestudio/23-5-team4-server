@@ -1,5 +1,6 @@
 package com.wafflestudio.spring2025.config
 
+import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.oracle.bmc.Region
@@ -20,7 +21,9 @@ import java.util.Base64
  * with Spring Boot 3.x.
  */
 class OciVaultPostProcessorBridge : EnvironmentPostProcessor {
-    private val objectMapper = jacksonObjectMapper()
+    private val objectMapper =
+        jacksonObjectMapper()
+            .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
     override fun postProcessEnvironment(
         environment: ConfigurableEnvironment,
