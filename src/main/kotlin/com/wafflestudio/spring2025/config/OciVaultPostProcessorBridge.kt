@@ -59,7 +59,12 @@ class OciVaultPostProcessorBridge : EnvironmentPostProcessor {
                     val parsed: Map<String, String> = objectMapper.readValue(decoded)
 
                     for ((key, value) in parsed) {
-                        val existing = environment.getProperty(key)
+                        val existing =
+                            try {
+                                environment.getProperty(key)
+                            } catch (_: Exception) {
+                                null
+                            }
                         if (existing.isNullOrBlank()) {
                             secrets[key] = value
                         }
