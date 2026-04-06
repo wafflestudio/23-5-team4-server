@@ -18,6 +18,9 @@ jobs:
     deploy:
         name: Deploy
         runs-on: ubuntu-24.04-arm
+        permissions:
+            packages: read
+            contents: read
 
         env:
             IMAGE_TAG: ${{ github.run_number }} #github.* 변수들은 github 자체 내장
