@@ -70,13 +70,9 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.41.19"))
     implementation("software.amazon.awssdk:s3")
 
-    // oci vault 의존성 (GITHUB_TOKEN 없는 로컬 환경에서는 제외)
-    if (System.getenv("GITHUB_TOKEN") != null) {
-        println("[DEBUG] VAULT_DEP_ADDED (GITHUB_TOKEN length=${System.getenv("GITHUB_TOKEN").length})")
-        implementation("com.wafflestudio.spring:spring-boot-starter-waffle-oci-vault:2.1.0")
-    } else {
-        println("[DEBUG] VAULT_DEP_SKIPPED (GITHUB_TOKEN is null)")
-    }
+    // OCI Vault - SDK 직접 사용 (waffle-oci-vault 2.1.0은 Spring Boot 3.5와 호환 안됨)
+    implementation("com.oracle.oci.sdk:oci-java-sdk-secrets:3.80.1")
+    implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.80.1")
 }
 
 kotlin {
