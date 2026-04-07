@@ -58,12 +58,7 @@ class OciVaultPostProcessorBridge : EnvironmentPostProcessor {
                     val decoded = String(Base64.getDecoder().decode(content.content))
                     val parsed: Map<String, String> = objectMapper.readValue(decoded)
 
-                    for ((key, value) in parsed) {
-                        val existing = environment.getProperty(key)
-                        if (existing.isNullOrBlank()) {
-                            secrets[key] = value
-                        }
-                    }
+                    secrets.putAll(parsed)
                 } catch (e: Exception) {
                     System.err.println("[OciVault] Failed to fetch secret $secretId: ${e.message}")
                 }
