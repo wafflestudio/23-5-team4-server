@@ -105,7 +105,7 @@ spring:
     username: moiming-dev
     password:
 cors:
-  allowed-origins: https://dev.moiming.wafflestudio.com
+  allowed-origins: ""
 oci:
   vault:
     secret-ids: ocid1.vaultsecret.oc1.ap-chuncheon-1.amaaaaaat2m5lbqaa3m45icdqcka43cvyzb4kb3ktuatfobwusnsdd4bvzkq
@@ -120,7 +120,7 @@ spring:
     url: jdbc:mysql://10.0.30.217:3306/moiming_prod?allowPublicKeyRetrieval=true
     username: moiming-prod
 cors:
-  allowed-origins: https://moiming.wafflestudio.com
+  allowed-origins: ""
 oci:
   vault:
     secret-ids: ocid1.vaultsecret.oc1.ap-chuncheon-1.amaaaaaat2m5lbqameflpkt7abivvrauqwheybzrkqipf7msv3ol6ikhd3aq

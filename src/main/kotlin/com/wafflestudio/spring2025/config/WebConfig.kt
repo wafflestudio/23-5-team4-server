@@ -21,6 +21,8 @@ class WebConfig(
     }
 
     override fun addCorsMappings(registry: CorsRegistry) {
+        val origins = corsProperties.getAllowedOriginsList()
+        if (origins.isEmpty()) return
         registry
             .addMapping("/**")
             .allowedOrigins(*corsProperties.getAllowedOriginsList().toTypedArray())
