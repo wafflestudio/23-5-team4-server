@@ -25,8 +25,8 @@ class JavaMailEmailClient(
         fromEmail: String,
         fromName: String,
     ) {
-        // 지금 AWS SDK를 쓰는 게 아니라 그냥 email config를 AWS SES의 SMTP 엔드포인트로 해놓은 상황
-        // (SDK가 아닌 SMTP 방식으로 SES 사용)
+        // OCI Email Delivery의 SMTP 엔드포인트를 사용 (SDK가 아닌 SMTP 방식)
+        // 발신 주소는 OCI 콘솔 Approved Senders에 등록되어 있어야 합니다.
         try {
             val message: MimeMessage = javaMailSender.createMimeMessage()
             val helper = MimeMessageHelper(message, "UTF-8")
@@ -36,7 +36,6 @@ class JavaMailEmailClient(
             helper.setText(htmlContent, true)
             helper.setFrom("$fromName <$fromEmail>")
 
-            // AWS SES 샌드박스 모드에서는 발신/수신 주소 모두 사전 인증(Verified)이 필요합니다.
             javaMailSender.send(message)
         } catch (e: MessagingException) {
             logger.error("메일 구성 실패: to={}, subject={}", to, subject, e)
