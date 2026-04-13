@@ -9,7 +9,7 @@ spring:
     password: somepassword
     driver-class-name: com.mysql.cj.jdbc.Driver
   mail:
-    host: email-smtp.us-east-1.amazonaws.com
+    host: smtp.email.ap-chuncheon-1.oci.oraclecloud.com
     port: 587
     username: ${OCI_EMAIL_SMTP_USERNAME:YOUR_OCI_SMTP_USERNAME}
     password: ${OCI_EMAIL_SMTP_PASSWORD:YOUR_OCI_SMTP_PASSWORD}
