@@ -33,8 +33,10 @@ data class EventInfo(
     val endsAt: Instant?,
     @Schema(description = "정원", example = "10", nullable = true)
     val capacity: Int?,
-    @Schema(description = "총 신청자 수(확정+대기 등)", example = "8")
-    val totalApplicants: Int,
+    @Schema(description = "참여자 수(참여 확정 인원)", example = "5")
+    val confirmedCount: Int,
+    @Schema(description = "대기자 수", example = "5")
+    val waitlistCount: Int,
     @Schema(description = "신청 시작 시간 (ISO-8601)", example = "2026-02-02T17:00:00Z", nullable = true)
     val registrationStartsAt: Instant?,
     @Schema(description = "신청 마감 시간 (ISO-8601)", example = "2026-02-02T17:00:00Z")

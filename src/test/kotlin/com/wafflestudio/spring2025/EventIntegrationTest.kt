@@ -357,7 +357,8 @@ class EventIntegrationTest
                 .andExpect(jsonPath("$.event.publicId").value(event.publicId))
                 .andExpect(jsonPath("$.event.title").value("공개 이벤트"))
                 .andExpect(jsonPath("$.event.capacity").value(10))
-                .andExpect(jsonPath("$.event.totalApplicants").value(0))
+                .andExpect(jsonPath("$.event.confirmedCount").value(0))
+                .andExpect(jsonPath("$.event.waitlistCount").value(0))
                 .andExpect(jsonPath("$.creator.name").value(creator.name))
                 .andExpect(jsonPath("$.creator.email").value(creator.email))
                 .andExpect(jsonPath("$.viewer.status").value("NONE"))
@@ -536,7 +537,7 @@ class EventIntegrationTest
         }
 
         @Test
-        fun `totalApplicants는 CONFIRMED + WAITLISTED 수의 합이다`() {
+        fun `confirmedCnt는 참여자(확정) 수를 반영한다`() {
             val (creator, _) = dataGenerator.generateUser()
             val (user1, _) = dataGenerator.generateUser()
             val (user2, _) = dataGenerator.generateUser()
@@ -550,7 +551,25 @@ class EventIntegrationTest
                 .perform(
                     get("/api/events/${event.publicId}"),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.event.totalApplicants").value(3))
+                .andExpect(jsonPath("$.event.confirmedCount").value(2))
+        }
+
+        @Test
+        fun `waitlistCount는 대기자 수를 반영한다`() {
+            val (creator, _) = dataGenerator.generateUser()
+            val (user1, _) = dataGenerator.generateUser()
+            val (user2, _) = dataGenerator.generateUser()
+            val event = createEventInDb(createdBy = creator.id!!, capacity = 2, waitlistEnabled = true)
+
+            registrationRepository.save(Registration(userId = creator.id!!, eventId = event.id!!, status = RegistrationStatus.CONFIRMED))
+            registrationRepository.save(Registration(userId = user1.id!!, eventId = event.id!!, status = RegistrationStatus.CONFIRMED))
+            registrationRepository.save(Registration(userId = user2.id!!, eventId = event.id!!, status = RegistrationStatus.WAITLISTED))
+
+            mvc
+                .perform(
+                    get("/api/events/${event.publicId}"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.event.waitlistCount").value(1))
         }
 
         // =================================================================
@@ -627,7 +646,8 @@ class EventIntegrationTest
                 .andExpect(jsonPath("$.events[0].publicId").value(event.publicId))
                 .andExpect(jsonPath("$.events[0].title").value("필드 검증 이벤트"))
                 .andExpect(jsonPath("$.events[0].capacity").value(20))
-                .andExpect(jsonPath("$.events[0].totalApplicants").value(0))
+                .andExpect(jsonPath("$.events[0].confirmedCount").value(0))
+                .andExpect(jsonPath("$.events[0].waitlistCount").value(0))
         }
 
         @Test

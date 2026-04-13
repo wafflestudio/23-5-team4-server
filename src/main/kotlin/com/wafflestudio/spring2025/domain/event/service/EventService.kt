@@ -228,7 +228,8 @@ class EventService(
                     startsAt = event.startsAt,
                     endsAt = event.endsAt,
                     capacity = event.capacity,
-                    totalApplicants = totalApplicants,
+                    confirmedCount = confirmedCount,
+                    waitlistCount = waitlistedCount,
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                 ),
@@ -297,7 +298,8 @@ class EventService(
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                     capacity = event.capacity,
-                    totalApplicants = confirmedCount + waitlistedCount,
+                    confirmedCount = confirmedCount,
+                    waitlistCount = waitlistedCount,
                 )
             }
 
