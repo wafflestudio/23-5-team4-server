@@ -95,6 +95,13 @@ aws:
 server:
   forward-headers-strategy: framework
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    url: /docs/openapi.yaml
+    disable-swagger-default-url: true
+
 ---
 spring:
   config:

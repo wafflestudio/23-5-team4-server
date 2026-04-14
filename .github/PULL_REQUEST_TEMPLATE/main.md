@@ -5,6 +5,7 @@
 - [ ] CI 성공
 - [ ] 환경 변수 설정 확인
 - [ ] dev 서버에서 변경사항에 대해 의도대로 동작함을 확인
+- [ ] API 변경이 있다면 `src/main/resources/static/docs/openapi.yaml` 반영 완료
 
 ### 📝 업데이트 사항 요약
 

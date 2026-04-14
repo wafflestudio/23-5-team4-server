@@ -21,6 +21,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint OpenAPI YAML
+        run: npx @redocly/cli@latest lint src/main/resources/static/docs/openapi.yaml
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
