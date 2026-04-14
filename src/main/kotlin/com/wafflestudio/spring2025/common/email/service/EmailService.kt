@@ -133,6 +133,7 @@ class EmailService(
             RegistrationStatus.CONFIRMED -> {
                 val htmlContent =
                     loadTemplate("registration-confirmed.html")
+                        .replace("{serviceDomain}", emailConfig.serviceDomain)
                         .replace("{name}", data.name)
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
@@ -158,6 +159,7 @@ class EmailService(
             RegistrationStatus.WAITLISTED -> {
                 val htmlContent =
                     loadTemplate("registration-waitlisted.html")
+                        .replace("{serviceDomain}", emailConfig.serviceDomain)
                         .replace("{name}", data.name)
                         .replace("{waitingNum}", data.waitingNum?.toString() ?: "-")
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
@@ -253,6 +255,7 @@ class EmailService(
     fun sendDemotionEmail(data: DemotionEmailData) {
         val htmlContent =
             loadTemplate("registration-demoted.html")
+                .replace("{serviceDomain}", emailConfig.serviceDomain)
                 .replace("{name}", data.name)
                 .replace("{waitingNum}", data.waitingNum?.toString() ?: "-")
                 .replace("{newCapacity}", data.newCapacity.toString())
@@ -293,6 +296,7 @@ class EmailService(
     ) {
         val htmlContent =
             loadTemplate("registration-waitlist-promoted.html")
+                .replace("{serviceDomain}", emailConfig.serviceDomain)
                 .replace("{name}", name)
                 .replace("{waitingNum}", waitingNum?.toString() ?: "-")
                 .replace("{eventTitle}", formatEventTitle(eventTitle))
