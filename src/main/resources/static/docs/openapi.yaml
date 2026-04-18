@@ -108,12 +108,6 @@ paths:
                   type: string
                   format: binary
       responses:
-        "401":
-          description: 인증 실패 (유효하지 않은 토큰)
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ImageUploadResponse"
         "200":
           description: 이미지 업로드 성공
           content:
@@ -125,7 +119,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ImageUploadResponse"
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 인증 실패 (유효하지 않은 토큰)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/events:
     post:
       tags:
@@ -212,31 +212,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateRegistrationResponse"
         "409":
-          description: "신청 불가: 3001(Registration already exists), 3005(Host cannot\
-            \ register), 2301(Event is full)"
+          description: "신청 불가: REGISTRATION_ALREADY_EXISTS, REGISTRATION_BLOCKED_HOST, EVENT_FULL"
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CreateRegistrationResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "400":
-          description: "유효하지 않은 요청: 3003(Wrong guest name), 3004(Wrong guest email),\
-            \ 2204(Invalid registration window)"
+          description: "유효하지 않은 요청: REGISTRATION_WRONG_NAME, REGISTRATION_WRONG_EMAIL, NOT_WITHIN_REGISTRATION_WINDOW"
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CreateRegistrationResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: "권한 없음: 3006(Banned user cannot register)"
+          description: "권한 없음: REGISTRATION_BLOCKED_BANNED"
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CreateRegistrationResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: "이벤트 없음: 2001(Event not found)"
+          description: "이벤트 없음: EVENT_NOT_FOUND"
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CreateRegistrationResponse"
+                $ref: "#/components/schemas/ErrorResponse"
   /api/auth/social:
     post:
       tags:
@@ -261,13 +259,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/LoginResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 인증 실패
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/LoginResponse"
+                $ref: "#/components/schemas/ErrorResponse"
   /api/auth/signup:
     post:
       tags:
@@ -316,7 +314,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/LoginResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: "로그인 성공, JWT 토큰 반환"
           content:
@@ -354,7 +352,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/UserDto"
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: 사용자 정보 조회 성공
           content:
@@ -522,43 +520,52 @@ components:
         title:
           type: string
           description: 이벤트 제목
+          nullable: true
           example: 정기 모임
         description:
           type: string
           description: 이벤트 설명
+          nullable: true
           example: 정기 모임입니다
         location:
           type: string
           description: 장소
+          nullable: true
           example: 강의실 101
         startsAt:
           type: string
           description: 시작 시간 (ISO-8601)
           format: date-time
+          nullable: true
           example: 2026-02-02T18:00:00Z
         endsAt:
           type: string
           description: 종료 시간 (ISO-8601)
           format: date-time
+          nullable: true
           example: 2026-02-02T20:00:00Z
         capacity:
           type: integer
           description: 정원
           format: int32
+          nullable: true
           example: 30
         waitlistEnabled:
           type: boolean
           description: 대기 명단 사용 여부
+          nullable: true
           example: true
         registrationStartsAt:
           type: string
           description: 신청 시작 시간 (ISO-8601)
           format: date-time
+          nullable: true
           example: 2026-02-02T17:00:00Z
         registrationEndsAt:
           type: string
           description: 신청 마감 시간 (ISO-8601)
           format: date-time
+          nullable: true
           example: 2026-02-02T17:30:00Z
       description: 일정 수정 요청
     UpdateEventResponse:
@@ -572,22 +579,28 @@ components:
           type: string
         description:
           type: string
+          nullable: true
         location:
           type: string
+          nullable: true
         startsAt:
           type: string
           format: date-time
+          nullable: true
         endsAt:
           type: string
           format: date-time
+          nullable: true
         capacity:
           type: integer
           format: int32
+          nullable: true
         waitlistEnabled:
           type: boolean
         registrationStartsAt:
           type: string
           format: date-time
+          nullable: true
         registrationEndsAt:
           type: string
           format: date-time
@@ -616,20 +629,24 @@ components:
         description:
           type: string
           description: 이벤트 설명
+          nullable: true
           example: 정기 모임입니다
         location:
           type: string
           description: 장소
+          nullable: true
           example: 강의실 101
         startsAt:
           type: string
           description: 시작 시간 (ISO-8601)
           format: date-time
+          nullable: true
           example: 2026-02-02T18:00:00Z
         endsAt:
           type: string
           description: 종료 시간 (ISO-8601)
           format: date-time
+          nullable: true
           example: 2026-02-02T20:00:00Z
         capacity:
           type: integer
@@ -644,6 +661,7 @@ components:
           type: string
           description: 신청 시작 시간 (ISO-8601). null인 경우 요청 시점으로 자동 설정됩니다.
           format: date-time
+          nullable: true
           example: 2026-02-02T17:00:00Z
         registrationEndsAt:
           type: string
@@ -664,9 +682,11 @@ components:
         guestName:
           type: string
           description: 비회원 이름
+          nullable: true
         guestEmail:
           type: string
           description: 비회원 이메일
+          nullable: true
       description: 이벤트 신청 요청
     CreateRegistrationResponse:
       required:
@@ -720,6 +740,7 @@ components:
         profileImage:
           type: string
           description: 프로필 이미지 URL
+          nullable: true
           example: https://cdn.example.com/profile.png
       description: 회원가입 요청
     LoginRequest:
@@ -742,12 +763,16 @@ components:
       properties:
         name:
           type: string
+          nullable: true
         email:
           type: string
+          nullable: true
         password:
           type: string
+          nullable: true
         profileImage:
           type: string
+          nullable: true
     UserDto:
       required:
       - email
@@ -764,11 +789,13 @@ components:
           type: string
         profileImage:
           type: string
+          nullable: true
     UpdateRegistrationStatusRequest:
       type: object
       properties:
         status:
           type: string
+          nullable: true
           enum:
           - HOST
           - CONFIRMED
@@ -780,6 +807,7 @@ components:
       properties:
         patchEmail:
           type: string
+          nullable: true
       description: 이벤트 신청 상태 변경
     GetRegistrationResponse:
       required:
@@ -836,22 +864,27 @@ components:
           type: string
           description: 이벤트 시작 시간 (ISO-8601)
           format: date-time
+          nullable: true
         endsAt:
           type: string
           description: 이벤트 종료 시간 (ISO-8601)
           format: date-time
+          nullable: true
         registrationStartsAt:
           type: string
           description: 신청 시작 시간 (ISO-8601)
           format: date-time
+          nullable: true
         registrationEndsAt:
           type: string
           description: 신청 마감 시간 (ISO-8601)
           format: date-time
+          nullable: true
         capacity:
           type: integer
           description: 정원
           format: int32
+          nullable: true
         registrationCnt:
           type: integer
           description: 현재 신청 수 + 대기 수
@@ -867,6 +900,7 @@ components:
           type: integer
           description: 대기 순번 (WAITLISTED가 아니면 null)
           format: int32
+          nullable: true
       description: 내 이벤트 신청 요약
     CapabilitiesInfo:
       required:
@@ -941,7 +975,8 @@ components:
       - publicId
       - registrationEndsAt
       - title
-      - totalApplicants
+      - confirmedCount
+      - waitlistCount
       type: object
       properties:
         publicId:
@@ -980,9 +1015,14 @@ components:
           format: int32
           nullable: true
           example: 10
-        totalApplicants:
+        confirmedCount:
           type: integer
-          description: 총 신청자 수(확정+대기 등)
+          description: 참여 확정 신청자 수
+          format: int32
+          example: 8
+        waitlistCount:
+          type: integer
+          description: 대기자 수
           format: int32
           example: 8
         registrationStartsAt:
@@ -1072,9 +1112,11 @@ components:
         email:
           type: string
           description: 이메일 (관리자 요청 시 노출)
+          nullable: true
         profileImage:
           type: string
           description: 프로필 이미지 URL
+          nullable: true
         createdAt:
           type: string
           description: 신청 일시
@@ -1091,6 +1133,7 @@ components:
           type: integer
           description: 대기 순번 (status가 WAITLISTED일 때만 아니면 null)
           format: int32
+          nullable: true
       description: 신청자 정보
     GetEventRegistrationsResponse:
       required:
@@ -1107,10 +1150,12 @@ components:
           type: integer
           description: 필터에 따라 변하는 참여자 수
           format: int32
+          nullable: true
         nextCursor:
           type: integer
           description: 다음 페이지 시작 offset (없으면 null)
           format: int32
+          nullable: true
         hasNext:
           type: boolean
           description: 다음 페이지 존재 여부
@@ -1120,7 +1165,8 @@ components:
       - publicId
       - registrationEndsAt
       - title
-      - totalApplicants
+      - confirmedCount
+      - waitlistCount
       type: object
       properties:
         publicId:
@@ -1130,19 +1176,26 @@ components:
         startsAt:
           type: string
           format: date-time
+          nullable: true
         endsAt:
           type: string
           format: date-time
+          nullable: true
         registrationStartsAt:
           type: string
           format: date-time
+          nullable: true
         registrationEndsAt:
           type: string
           format: date-time
         capacity:
           type: integer
           format: int32
-        totalApplicants:
+          nullable: true
+        confirmedCount:
+          type: integer
+          format: int32
+        waitlistCount:
           type: integer
           format: int32
     MyEventsInfiniteResponse:
@@ -1158,6 +1211,7 @@ components:
         nextCursor:
           type: string
           format: date-time
+          nullable: true
         hasNext:
           type: boolean
     DeleteRegistrationRequest:
@@ -1166,12 +1220,31 @@ components:
         guestName:
           type: string
           description: 비회원 이름
+          nullable: true
         guestEmail:
           type: string
           description: 비회원 이메일
+          nullable: true
       description: 이벤트 취소 요청
     DeleteRegistrationResponse:
       type: object
+    ErrorResponse:
+      required:
+      - code
+      - message
+      - title
+      type: object
+      properties:
+        code:
+          type: string
+          description: 에러 코드
+        title:
+          type: string
+          description: 에러 제목
+        message:
+          type: string
+          description: 에러 메시지
+      description: 에러 응답
   securitySchemes:
     bearerAuth:
       type: http
