@@ -28,8 +28,10 @@ data class MyRegistrationItem(
     val registrationEndsAt: Instant?,
     @Schema(description = "정원")
     val capacity: Int?,
-    @Schema(description = "현재 신청 수 + 대기 수")
-    val registrationCnt: Int,
+    @Schema(description = "확정 참여자 수")
+    val confirmedCount: Int,
+    @Schema(description = "대기자 수")
+    val waitlistCount: Int,
     @Schema(description = "신청 상태")
     val status: MyRegistrationStatus,
     @Schema(description = "대기 순번 (WAITLISTED가 아니면 null)")
@@ -38,7 +40,8 @@ data class MyRegistrationItem(
     constructor(
         registration: Registration,
         event: Event,
-        registrationCnt: Int,
+        confirmedCount: Int,
+        waitlistCount: Int,
         waitlistedNum: Int?,
     ) : this(
         publicId = event.publicId,
@@ -48,7 +51,8 @@ data class MyRegistrationItem(
         registrationStartsAt = event.registrationStartsAt,
         registrationEndsAt = event.registrationEndsAt,
         capacity = event.capacity,
-        registrationCnt = registrationCnt,
+        confirmedCount = confirmedCount,
+        waitlistCount = waitlistCount,
         status = MyRegistrationStatus.from(registration.status),
         waitlistedNum = waitlistedNum,
     )
