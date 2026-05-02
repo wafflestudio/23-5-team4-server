@@ -769,12 +769,12 @@ RegistrationService(
         val remainingWaitlisted = totalWaitlisted - promoted.size
         val totalCount = confirmedAfter + remainingWaitlisted
 
+        val promotedUserIds = promoted.mapNotNull { it.userId }.distinct()
+        val promotedUsersById = userRepository.findAllById(promotedUserIds).associateBy { it.id!! }
+
         val emailDataList =
             promoted.mapNotNull { registration ->
-                val user: User? =
-                    registration.userId?.let { uid ->
-                        userRepository.findById(uid).orElse(null)
-                    }
+                val user: User? = registration.userId?.let { promotedUsersById[it] }
 
                 val recipientEmail = user?.email ?: registration.guestEmail
                 val recipientName = user?.name ?: registration.guestName ?: "참여자"
