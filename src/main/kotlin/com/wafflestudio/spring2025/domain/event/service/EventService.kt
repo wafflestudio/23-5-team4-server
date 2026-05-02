@@ -271,19 +271,31 @@ class EventService(
         val sliced = fetched.take(pageSize)
         val nextCursor = sliced.lastOrNull()?.createdAt
 
+        val eventIds = sliced.map { requireNotNull(it.id) }
+
+        val confirmedCounts =
+            if (eventIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .countByEventIdsAndStatuses(eventIds = eventIds, listOf(RegistrationStatus.CONFIRMED))
+                    .associate { it.eventId to it.totalCount.toInt() }
+            }
+
+        val waitlistedCounts =
+            if (eventIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .countByEventIdsAndStatuses(eventIds = eventIds, listOf(RegistrationStatus.WAITLISTED))
+                    .associate { it.eventId to it.totalCount.toInt() }
+            }
+
         val responses =
             sliced.map { event ->
                 val eventId = requireNotNull(event.id)
-
-                val confirmedCount =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.CONFIRMED)
-                        .toInt()
-
-                val waitlistedCount =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.WAITLISTED)
-                        .toInt()
+                val confirmedCount = confirmedCounts[eventId] ?: 0
+                val waitlistedCount = waitlistedCounts[eventId] ?: 0
 
                 MyEventResponse(
                     publicId = event.publicId,
