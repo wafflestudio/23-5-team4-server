@@ -385,9 +385,10 @@ class EventService(
 
         // 알림 대상: CONFIRMED + WAITLISTED (BANNED 제외)
         val registrationsToNotify =
-            registrationRepository
-                .findByEventId(eventId)
-                .filter { it.status == RegistrationStatus.CONFIRMED || it.status == RegistrationStatus.WAITLISTED }
+            registrationRepository.findByEventIdAndStatusIn(
+                eventID = eventId,
+                statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+            )
 
         // 이메일 데이터 구성 (삭제 전에 user 정보 조회)
         val hostUser = userRepository.findById(event.createdBy).orElse(null)
