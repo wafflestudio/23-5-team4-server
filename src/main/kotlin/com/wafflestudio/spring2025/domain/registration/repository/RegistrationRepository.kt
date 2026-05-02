@@ -41,6 +41,11 @@ interface RegistrationRepository :
         eventId: Long,
     ): Registration?
 
+    fun findByEventIdAndStatusIn(
+        eventID: Long,
+        statuses: Collection<RegistrationStatus>,
+    ): List<Registration>
+
     fun countByEventId(eventID: Long): Long
 
     fun countByEventIdAndStatus(
@@ -64,6 +69,12 @@ interface RegistrationRepository :
     fun findByEventIdAndStatusOrderByCreatedAtAsc(
         eventID: Long,
         registrationStatus: RegistrationStatus,
+    ): List<Registration>
+
+    fun findByEventIdAndStatusOrderByCreatedAtAsc(
+        eventID: Long,
+        registrationStatus: RegistrationStatus,
+        pageable: Pageable,
     ): List<Registration>
 
     @Query(
