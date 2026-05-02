@@ -253,8 +253,6 @@ RegistrationService(
             }
         }
 
-        eventLockRepository.lockById(registration.eventId)
-
         if (!isRegistrationEnabled(event)) {
             throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
         }
