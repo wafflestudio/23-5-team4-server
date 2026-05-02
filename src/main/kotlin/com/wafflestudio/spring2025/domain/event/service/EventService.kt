@@ -96,10 +96,9 @@ class EventService(
         val event = getEventByPublicId(publicId)
         val eventId = requireNotNull(event.id) { "Event id is null: publicId=$publicId" }
 
-        val creatorUser =
-            userRepository.findById(event.createdBy).orElseThrow {
-                EventNotFoundException()
-            }
+        val userIdsToFetch = listOfNotNull(event.createdBy, requesterId).distinct()
+        val usersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
+        val creatorUser = usersById[event.createdBy] ?: throw EventNotFoundException()
 
         val myReg =
             if (requesterId == null) {
@@ -149,10 +148,7 @@ class EventService(
                     }
             }
 
-        val viewerName: String? =
-            requesterId?.let {
-                userRepository.findById(it).orElse(null)?.name
-            }
+        val viewerName: String? = requesterId?.let { usersById[it]?.name }
 
         val viewer =
             if (viewerStatus == ViewerStatus.NONE) {
