@@ -97,6 +97,11 @@ RegistrationService(
                 registrationRepository.findByUserIdAndEventId(userId, eventPk)
             }
 
+        val userIdsToFetch = listOfNotNull(lockedEvent.createdBy, userId).distinct()
+        val fetchedUsersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
+        val hostEmail = fetchedUsersById[lockedEvent.createdBy]?.email
+        val user = userId?.let { fetchedUsersById[it] }
+
         val saved =
             try {
                 if (existingRegistration != null) {
@@ -113,8 +118,7 @@ RegistrationService(
                         -> throw RegistrationConflictException(RegistrationErrorCode.REGISTRATION_ALREADY_EXISTS)
                     }
                 } else {
-                    val hostEmail = userRepository.findById(lockedEvent.createdBy).orElse(null)?.email
-                    val registrationEmail = userId?.let { userRepository.findById(it).orElse(null)?.email } ?: guestEmail
+                    val registrationEmail = user?.email ?: guestEmail
 
                     if (hostEmail != null && hostEmail == registrationEmail) {
                         throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_BLOCKED_HOST)
