@@ -28,6 +28,7 @@ import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
@@ -755,23 +756,26 @@ RegistrationService(
         val available = capacity - confirmed
         if (available <= 0) return
 
-        val waitlistedRegs =
+        val totalWaitlisted =
+            registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED).toInt()
+
+        val promoted =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventId,
                 RegistrationStatus.WAITLISTED,
+                Pageable.ofSize(available),
             )
 
         val waitlistNumbers =
-            waitlistedRegs.withIndex().associate { indexed ->
-                indexed.value.registrationPublicId to (indexed.index + 1)
+            promoted.withIndex().associate { (index, reg) ->
+                reg.registrationPublicId to (index + 1)
             }
 
-        val promoted = waitlistedRegs.take(available)
         promoted.forEach { it.status = RegistrationStatus.CONFIRMED }
         registrationRepository.saveAll(promoted)
 
         val confirmedAfter = confirmed + promoted.size
-        val remainingWaitlisted = waitlistedRegs.size - promoted.size
+        val remainingWaitlisted = totalWaitlisted - promoted.size
         val totalCount = confirmedAfter + remainingWaitlisted
 
         val emailDataList =
