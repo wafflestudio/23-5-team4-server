@@ -23,6 +23,7 @@ import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRe
 import com.wafflestudio.spring2025.domain.registration.service.WaitlistReconciliationService
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -179,18 +180,17 @@ class EventService(
                 registrationEndsAt = event.registrationEndsAt,
             )
 
-        val confirmedRegs =
+        val previewRegs =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventID = eventId,
                 registrationStatus = RegistrationStatus.CONFIRMED,
+                pageable = Pageable.ofSize(5),
             )
-
-        val previewRegs = confirmedRegs.take(5)
 
         val previewUserIds =
             previewRegs.mapNotNull { it.userId }.distinct()
 
-        val usersById =
+        val previewUsersById =
             userRepository.findAllById(previewUserIds).associateBy { it.id!! }
 
         val guestsPreview =
@@ -203,7 +203,7 @@ class EventService(
                         profileImage = null,
                     )
                 } else {
-                    usersById[uid]?.let {
+                    previewUsersById[uid]?.let {
                         GuestPreview(
                             id = it.id!!,
                             name = it.name,
