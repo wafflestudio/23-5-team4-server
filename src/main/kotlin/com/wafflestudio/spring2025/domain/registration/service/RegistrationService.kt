@@ -576,13 +576,14 @@ RegistrationService(
         val status = registration.status
         val waitlistPosition =
             if (status == RegistrationStatus.WAITLISTED) {
-                val waitlistedRegs =
-                    registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
-                        registration.eventId,
-                        RegistrationStatus.WAITLISTED,
-                    )
-                val idx = waitlistedRegs.indexOfFirst { it.id == registration.id }
-                if (idx >= 0) idx + 1 else 0
+                registrationRepository
+                    .findWaitlistPositionsByRegistrationPublicIds(
+                        eventId = registration.eventId,
+                        status = RegistrationStatus.WAITLISTED,
+                        registrationPublicIds = listOf(registration.registrationPublicId),
+                    ).firstOrNull()
+                    ?.waitlistNumber
+                    ?.toInt() ?: 0
             } else {
                 0
             }
