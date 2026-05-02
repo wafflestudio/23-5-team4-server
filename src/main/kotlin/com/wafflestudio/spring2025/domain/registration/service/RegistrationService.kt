@@ -148,19 +148,11 @@ RegistrationService(
                 throw RegistrationConflictException(RegistrationErrorCode.REGISTRATION_ALREADY_EXISTS)
             }
 
-        val waitlistedNumber: Int? =
-            if (saved.status == RegistrationStatus.WAITLISTED) {
-                registrationRepository
-                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
-                    .toInt()
-            } else {
-                null
-            }
-
-        val user =
-            userId?.let { id ->
-                userRepository.findById(id).orElse(null)
-            }
+        val waitlistedCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
+                .toInt()
+        val waitlistedNumber: Int? = if (saved.status == RegistrationStatus.WAITLISTED) waitlistedCount else null
 
         val recipientEmail = user?.email ?: guestEmail
 
@@ -168,10 +160,6 @@ RegistrationService(
             val confirmedCount =
                 registrationRepository
                     .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
-                    .toInt()
-            val waitlistedCount =
-                registrationRepository
-                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
                     .toInt()
             val totalCount = confirmedCount + waitlistedCount
 
