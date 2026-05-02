@@ -705,6 +705,37 @@ class RegistrationIntegrationTest
                 .andExpect(jsonPath("$.registrations.length()").value(1))
         }
 
+        @Test
+        fun `my registrations endpoint includes confirmed and waitlist counts`() {
+            val (host, _) = dataGenerator.generateUser()
+            val (_, participantToken) = dataGenerator.generateUser()
+            val (_, anotherParticipantToken) = dataGenerator.generateUser()
+
+            val event =
+                createEvent(
+                    createdBy = host.id!!,
+                    title = "count-check",
+                    capacity = 1,
+                    waitlistEnabled = true,
+                )
+
+            registerAsUser(event.publicId, participantToken)
+            registerAsUser(event.publicId, anotherParticipantToken)
+
+            mvc
+                .perform(
+                    get("/api/registrations/me")
+                        .header("Authorization", "Bearer $participantToken")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .contentType(MediaType.APPLICATION_JSON),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.registrations.length()").value(1))
+                .andExpect(jsonPath("$.registrations[0].confirmedCount").value(1))
+                .andExpect(jsonPath("$.registrations[0].waitlistCount").value(1))
+                .andExpect(jsonPath("$.registrations[0].registrationCnt").doesNotExist())
+        }
+
         private fun registerAsUser(
             eventPublicId: String,
             token: String,
