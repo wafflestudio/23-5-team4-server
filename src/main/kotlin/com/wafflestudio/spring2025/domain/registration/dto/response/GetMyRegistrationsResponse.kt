@@ -17,11 +17,8 @@ data class MyRegistrationItem(
     val registrationStartsAt: Instant?,
     val registrationEndsAt: Instant?,
     val capacity: Int?,
-    @Schema(description = "확정 참여자 수")
     val confirmedCount: Int,
-    @Schema(description = "대기자 수")
     val waitlistCount: Int,
-    @Schema(description = "신청 상태")
     val status: MyRegistrationStatus,
     val waitlistedNum: Int?,
 ) {
