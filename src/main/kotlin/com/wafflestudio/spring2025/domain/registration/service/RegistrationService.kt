@@ -225,7 +225,7 @@ RegistrationService(
             registrationRepository.lockByRegistrationPublicId(registrationPublicId)
                 ?: throw RegistrationNotFoundException()
 
-        if (userId != null) {
+        if (registration.userId != null) {
             if (registration.userId != userId) {
                 throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_DELETE_UNAUTHORIZED)
             }
