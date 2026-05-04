@@ -572,6 +572,7 @@ components:
       required:
       - registrationEndsAt
       - title
+      - capacity
       - waitlistEnabled
       type: object
       properties:
@@ -849,7 +850,8 @@ components:
     MyRegistrationItem:
       required:
       - publicId
-      - registrationCnt
+      - confirmedCount
+      - waitlistCount
       - status
       - title
       type: object
@@ -885,9 +887,13 @@ components:
           description: 정원
           format: int32
           nullable: true
-        registrationCnt:
+        confirmedCount:
           type: integer
-          description: 현재 신청 수 + 대기 수
+          description: 참여 확정자 수
+          format: int32
+        waitlistCount:
+          type: integer
+          description: 참여 확정자 수
           format: int32
         status:
           type: string
