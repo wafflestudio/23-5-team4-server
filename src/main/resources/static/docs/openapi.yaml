@@ -20,6 +20,7 @@ tags:
 paths:
   /api/events/{publicId}:
     get:
+      security: []
       tags:
       - Event
       summary: 이벤트 상세 조회
@@ -85,6 +86,8 @@ paths:
           description: 인증 필요
   /api/images:
     post:
+      security:
+      - bearerAuth: []
       tags:
       - Image
       summary: 이미지 업로드
@@ -151,6 +154,8 @@ paths:
           description: 인증 필요
   /api/events/{eventId}/registrations:
     get:
+      security:
+      - bearerAuth: []
       tags:
       - Registration
       summary: 이벤트 신청 목록 조회
@@ -187,6 +192,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetEventRegistrationsResponse"
     post:
+      security: []
       tags:
       - Registration
       summary: 이벤트 참여 신청
@@ -237,6 +243,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /api/auth/social:
     post:
+      security: []
       tags:
       - Auth
       summary: 소셜 로그인
@@ -268,6 +275,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /api/auth/signup:
     post:
+      security: []
       tags:
       - Auth
       summary: 이메일 회원가입
@@ -289,6 +297,8 @@ paths:
           description: 이메일 서비스 장애
   /api/auth/logout:
     post:
+      security:
+      - bearerAuth: []
       tags:
       - Auth
       summary: 로그아웃
@@ -298,6 +308,7 @@ paths:
           description: 로그아웃 성공
   /api/auth/login:
     post:
+      security: []
       tags:
       - Auth
       summary: 로그인
@@ -323,6 +334,7 @@ paths:
                 $ref: "#/components/schemas/LoginResponse"
   /api/auth/email-verification/{verificationCode}:
     post:
+      security: []
       tags:
       - Auth
       summary: 이메일 인증
@@ -383,6 +395,7 @@ paths:
           description: 인증 필요
   /api/registrations/{registrationId}:
     get:
+      security: []
       tags:
       - Registration
       summary: 신청 단건 정보 요청
@@ -401,6 +414,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetRegistrationResponse"
     delete:
+      security: []
       tags:
       - Registration
       summary: 신청 단건 취소
@@ -425,6 +439,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeleteRegistrationResponse"
     patch:
+      security:
+      - bearerAuth: []
       tags:
       - Registration
       summary: 신청 단건 상태 변경
@@ -1255,6 +1271,5 @@ components:
     bearerAuth:
       type: http
       description: JWT 토큰을 입력하세요
-      name: bearerAuth
       scheme: bearer
       bearerFormat: JWT

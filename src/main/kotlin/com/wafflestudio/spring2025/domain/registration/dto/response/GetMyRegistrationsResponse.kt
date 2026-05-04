@@ -17,14 +17,16 @@ data class MyRegistrationItem(
     val registrationStartsAt: Instant?,
     val registrationEndsAt: Instant?,
     val capacity: Int?,
-    val registrationCnt: Int,
+    val confirmedCount: Int,
+    val waitlistCount: Int,
     val status: MyRegistrationStatus,
     val waitlistedNum: Int?,
 ) {
     constructor(
         registration: Registration,
         event: Event,
-        registrationCnt: Int,
+        confirmedCount: Int,
+        waitlistCount: Int,
         waitlistedNum: Int?,
     ) : this(
         publicId = event.publicId,
@@ -34,7 +36,8 @@ data class MyRegistrationItem(
         registrationStartsAt = event.registrationStartsAt,
         registrationEndsAt = event.registrationEndsAt,
         capacity = event.capacity,
-        registrationCnt = registrationCnt,
+        confirmedCount = confirmedCount,
+        waitlistCount = waitlistCount,
         status = MyRegistrationStatus.from(registration.status),
         waitlistedNum = waitlistedNum,
     )

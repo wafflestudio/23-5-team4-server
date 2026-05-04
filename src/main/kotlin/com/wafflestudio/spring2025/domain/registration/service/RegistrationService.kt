@@ -337,11 +337,18 @@ RegistrationService(
                 event.id ?: throw EventNotFoundException()
             }
 
-        val countsByEventId =
+        val confirmedCountsByEventId =
             registrationRepository
                 .countByEventIdsAndStatuses(
                     eventIds = eventIds,
-                    statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+                    statuses = listOf(RegistrationStatus.CONFIRMED),
+                ).associate { it.eventId to it.totalCount.toInt() }
+
+        val waitlistCountsByEventId =
+            registrationRepository
+                .countByEventIdsAndStatuses(
+                    eventIds = eventIds,
+                    statuses = listOf(RegistrationStatus.WAITLISTED),
                 ).associate { it.eventId to it.totalCount.toInt() }
 
         val waitlistedByRegistrationId =
@@ -362,7 +369,8 @@ RegistrationService(
                 MyRegistrationItem(
                     registration = registration,
                     event = event,
-                    registrationCnt = countsByEventId[registration.eventId] ?: 0,
+                    confirmedCount = confirmedCountsByEventId[registration.eventId] ?: 0,
+                    waitlistCount = waitlistCountsByEventId[registration.eventId] ?: 0,
                     waitlistedNum = waitlistedNumber,
                 )
             }
