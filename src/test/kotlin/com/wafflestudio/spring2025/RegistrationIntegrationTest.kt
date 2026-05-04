@@ -6,7 +6,6 @@ import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.domain.event.model.Event
 import com.wafflestudio.spring2025.domain.event.repository.EventRepository
 import com.wafflestudio.spring2025.domain.registration.dto.request.CreateRegistrationRequest
-import com.wafflestudio.spring2025.domain.registration.dto.request.DeleteRegistrationRequest
 import com.wafflestudio.spring2025.domain.registration.dto.request.UpdateRegistrationStatusRequest
 import com.wafflestudio.spring2025.domain.registration.model.Registration
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
@@ -243,7 +242,6 @@ class RegistrationIntegrationTest
                 .perform(
                     delete("/api/registrations/$participantRegistrationId")
                         .header("Authorization", "Bearer $hostToken")
-                        .content(mapper.writeValueAsString(DeleteRegistrationRequest()))
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isForbidden)
                 .andExpect(jsonPath("$.code").value("REGISTRATION_DELETE_UNAUTHORIZED"))
@@ -252,7 +250,6 @@ class RegistrationIntegrationTest
                 .perform(
                     delete("/api/registrations/$participantRegistrationId")
                         .header("Authorization", "Bearer $participantToken")
-                        .content(mapper.writeValueAsString(DeleteRegistrationRequest()))
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
 
@@ -276,7 +273,6 @@ class RegistrationIntegrationTest
                 .perform(
                     delete("/api/registrations/$confirmedRegistrationId")
                         .header("Authorization", "Bearer $confirmedUserToken")
-                        .content(mapper.writeValueAsString(DeleteRegistrationRequest()))
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
 
@@ -347,7 +343,6 @@ class RegistrationIntegrationTest
                 .perform(
                     delete("/api/registrations/${registration.registrationPublicId}")
                         .header("Authorization", "Bearer $participantToken")
-                        .content(mapper.writeValueAsString(DeleteRegistrationRequest()))
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value("NOT_WITHIN_REGISTRATION_WINDOW"))
@@ -378,7 +373,6 @@ class RegistrationIntegrationTest
                 .perform(
                     delete("/api/registrations/${registration.registrationPublicId}")
                         .header("Authorization", "Bearer $participantToken")
-                        .content(mapper.writeValueAsString(DeleteRegistrationRequest()))
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.code").value("NOT_WITHIN_REGISTRATION_WINDOW"))

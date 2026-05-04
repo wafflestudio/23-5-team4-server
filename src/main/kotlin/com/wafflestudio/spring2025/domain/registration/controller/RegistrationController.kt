@@ -1,7 +1,6 @@
 package com.wafflestudio.spring2025.domain.registration.controller
 
 import com.wafflestudio.spring2025.domain.auth.LoggedInUser
-import com.wafflestudio.spring2025.domain.registration.dto.request.DeleteRegistrationRequest
 import com.wafflestudio.spring2025.domain.registration.dto.request.UpdateRegistrationStatusRequest
 import com.wafflestudio.spring2025.domain.registration.dto.response.DeleteRegistrationResponse
 import com.wafflestudio.spring2025.domain.registration.dto.response.GetRegistrationResponse
@@ -48,15 +47,12 @@ class RegistrationController(
     @DeleteMapping
     fun delete(
         @PathVariable registrationId: String,
-        @RequestBody request: DeleteRegistrationRequest,
         @LoggedInUser user: User?,
     ): ResponseEntity<DeleteRegistrationResponse> {
         val response =
             registrationService.delete(
                 registrationPublicId = registrationId,
                 userId = user?.id,
-                guestName = request.guestName,
-                guestEmail = request.guestEmail,
             )
 
         return ResponseEntity.ok(response)
