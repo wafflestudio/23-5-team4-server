@@ -909,7 +909,7 @@ components:
           format: int32
         waitlistCount:
           type: integer
-          description: 참여 확정자 수
+          description: 대기자 수
           format: int32
         status:
           type: string
