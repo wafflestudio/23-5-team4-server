@@ -425,12 +425,6 @@ paths:
         required: true
         schema:
           type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeleteRegistrationRequest"
-        required: true
       responses:
         "200":
           description: OK
@@ -1236,18 +1230,6 @@ components:
           nullable: true
         hasNext:
           type: boolean
-    DeleteRegistrationRequest:
-      type: object
-      properties:
-        guestName:
-          type: string
-          description: 비회원 이름
-          nullable: true
-        guestEmail:
-          type: string
-          description: 비회원 이메일
-          nullable: true
-      description: 이벤트 취소 요청
     DeleteRegistrationResponse:
       type: object
     ErrorResponse:

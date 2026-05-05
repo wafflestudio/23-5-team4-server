@@ -198,22 +198,9 @@ RegistrationService(
     fun delete(
         registrationPublicId: String,
         userId: Long?,
-        guestName: String?,
-        guestEmail: String?,
     ): DeleteRegistrationResponse {
-        if (userId == null) {
-            if (guestName.isNullOrBlank()) {
-                throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_NAME)
-            }
-            if (guestEmail.isNullOrBlank()) {
-                throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_EMAIL)
-            }
-        }
-
         deleteInternal(
             userId = userId,
-            guestName = guestName,
-            guestEmail = guestEmail,
             registrationPublicId = registrationPublicId,
         )
         return DeleteRegistrationResponse()
@@ -221,8 +208,6 @@ RegistrationService(
 
     private fun deleteInternal(
         userId: Long?,
-        guestName: String?,
-        guestEmail: String?,
         registrationPublicId: String,
     ) {
         // eventId를 얻기 위한 미리보기 조회 (락 없음)
@@ -240,15 +225,8 @@ RegistrationService(
             registrationRepository.lockByRegistrationPublicId(registrationPublicId)
                 ?: throw RegistrationNotFoundException()
 
-        if (userId != null) {
+        if (registration.userId != null) {
             if (registration.userId != userId) {
-                throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_DELETE_UNAUTHORIZED)
-            }
-        } else {
-            if (registration.userId != null ||
-                registration.guestName != guestName ||
-                registration.guestEmail != guestEmail
-            ) {
                 throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_DELETE_UNAUTHORIZED)
             }
         }
