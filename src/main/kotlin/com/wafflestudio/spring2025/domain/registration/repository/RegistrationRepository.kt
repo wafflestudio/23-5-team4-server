@@ -41,6 +41,11 @@ interface RegistrationRepository :
         eventId: Long,
     ): Registration?
 
+    fun findByEventIdAndStatusIn(
+        eventID: Long,
+        statuses: Collection<RegistrationStatus>,
+    ): List<Registration>
+
     fun countByEventId(eventID: Long): Long
 
     fun countByEventIdAndStatus(
@@ -64,6 +69,12 @@ interface RegistrationRepository :
     fun findByEventIdAndStatusOrderByCreatedAtAsc(
         eventID: Long,
         registrationStatus: RegistrationStatus,
+    ): List<Registration>
+
+    fun findByEventIdAndStatusOrderByCreatedAtAsc(
+        eventID: Long,
+        registrationStatus: RegistrationStatus,
+        pageable: Pageable,
     ): List<Registration>
 
     @Query(
@@ -175,7 +186,7 @@ interface RegistrationRepository :
                ranked.waitlist_number AS waitlist_number
         FROM (
             SELECT r.registration_public_id,
-                   ROW_NUMBER() OVER (ORDER BY r.created_at ASC, r.registration_public_id ASC) AS waitlist_number
+                   ROW_NUMBER() OVER (ORDER BY r.created_at ASC, r.id ASC) AS waitlist_number
             FROM registrations r
             WHERE r.event_id = :eventId AND r.status = :status
         ) ranked

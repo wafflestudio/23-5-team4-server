@@ -28,6 +28,7 @@ import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
@@ -96,6 +97,11 @@ RegistrationService(
                 registrationRepository.findByUserIdAndEventId(userId, eventPk)
             }
 
+        val userIdsToFetch = listOfNotNull(lockedEvent.createdBy, userId).distinct()
+        val fetchedUsersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
+        val hostEmail = fetchedUsersById[lockedEvent.createdBy]?.email
+        val user = userId?.let { fetchedUsersById[it] }
+
         val saved =
             try {
                 if (existingRegistration != null) {
@@ -112,8 +118,7 @@ RegistrationService(
                         -> throw RegistrationConflictException(RegistrationErrorCode.REGISTRATION_ALREADY_EXISTS)
                     }
                 } else {
-                    val hostEmail = userRepository.findById(lockedEvent.createdBy).orElse(null)?.email
-                    val registrationEmail = userId?.let { userRepository.findById(it).orElse(null)?.email } ?: guestEmail
+                    val registrationEmail = user?.email ?: guestEmail
 
                     if (hostEmail != null && hostEmail == registrationEmail) {
                         throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_BLOCKED_HOST)
@@ -143,19 +148,11 @@ RegistrationService(
                 throw RegistrationConflictException(RegistrationErrorCode.REGISTRATION_ALREADY_EXISTS)
             }
 
-        val waitlistedNumber: Int? =
-            if (saved.status == RegistrationStatus.WAITLISTED) {
-                registrationRepository
-                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
-                    .toInt()
-            } else {
-                null
-            }
-
-        val user =
-            userId?.let { id ->
-                userRepository.findById(id).orElse(null)
-            }
+        val waitlistedCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
+                .toInt()
+        val waitlistedNumber: Int? = if (saved.status == RegistrationStatus.WAITLISTED) waitlistedCount else null
 
         val recipientEmail = user?.email ?: guestEmail
 
@@ -163,10 +160,6 @@ RegistrationService(
             val confirmedCount =
                 registrationRepository
                     .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
-                    .toInt()
-            val waitlistedCount =
-                registrationRepository
-                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
                     .toInt()
             val totalCount = confirmedCount + waitlistedCount
 
@@ -259,8 +252,6 @@ RegistrationService(
                 throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_DELETE_UNAUTHORIZED)
             }
         }
-
-        eventLockRepository.lockById(registration.eventId)
 
         if (!isRegistrationEnabled(event)) {
             throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
@@ -585,13 +576,14 @@ RegistrationService(
         val status = registration.status
         val waitlistPosition =
             if (status == RegistrationStatus.WAITLISTED) {
-                val waitlistedRegs =
-                    registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
-                        registration.eventId,
-                        RegistrationStatus.WAITLISTED,
-                    )
-                val idx = waitlistedRegs.indexOfFirst { it.id == registration.id }
-                if (idx >= 0) idx + 1 else 0
+                registrationRepository
+                    .findWaitlistPositionsByRegistrationPublicIds(
+                        eventId = registration.eventId,
+                        status = RegistrationStatus.WAITLISTED,
+                        registrationPublicIds = listOf(registration.registrationPublicId),
+                    ).firstOrNull()
+                    ?.waitlistNumber
+                    ?.toInt() ?: 0
             } else {
                 0
             }
@@ -755,31 +747,34 @@ RegistrationService(
         val available = capacity - confirmed
         if (available <= 0) return
 
-        val waitlistedRegs =
+        val totalWaitlisted =
+            registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED).toInt()
+
+        val promoted =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventId,
                 RegistrationStatus.WAITLISTED,
+                Pageable.ofSize(available),
             )
 
         val waitlistNumbers =
-            waitlistedRegs.withIndex().associate { indexed ->
-                indexed.value.registrationPublicId to (indexed.index + 1)
+            promoted.withIndex().associate { (index, reg) ->
+                reg.registrationPublicId to (index + 1)
             }
 
-        val promoted = waitlistedRegs.take(available)
         promoted.forEach { it.status = RegistrationStatus.CONFIRMED }
         registrationRepository.saveAll(promoted)
 
         val confirmedAfter = confirmed + promoted.size
-        val remainingWaitlisted = waitlistedRegs.size - promoted.size
+        val remainingWaitlisted = totalWaitlisted - promoted.size
         val totalCount = confirmedAfter + remainingWaitlisted
+
+        val promotedUserIds = promoted.mapNotNull { it.userId }.distinct()
+        val promotedUsersById = userRepository.findAllById(promotedUserIds).associateBy { it.id!! }
 
         val emailDataList =
             promoted.mapNotNull { registration ->
-                val user: User? =
-                    registration.userId?.let { uid ->
-                        userRepository.findById(uid).orElse(null)
-                    }
+                val user: User? = registration.userId?.let { promotedUsersById[it] }
 
                 val recipientEmail = user?.email ?: registration.guestEmail
                 val recipientName = user?.name ?: registration.guestName ?: "참여자"

@@ -23,6 +23,7 @@ import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRe
 import com.wafflestudio.spring2025.domain.registration.service.WaitlistReconciliationService
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -96,10 +97,9 @@ class EventService(
         val event = getEventByPublicId(publicId)
         val eventId = requireNotNull(event.id) { "Event id is null: publicId=$publicId" }
 
-        val creatorUser =
-            userRepository.findById(event.createdBy).orElseThrow {
-                EventNotFoundException()
-            }
+        val userIdsToFetch = listOfNotNull(event.createdBy, requesterId).distinct()
+        val usersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
+        val creatorUser = usersById[event.createdBy] ?: throw EventNotFoundException()
 
         val myReg =
             if (requesterId == null) {
@@ -121,17 +121,16 @@ class EventService(
                 .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.WAITLISTED)
                 .toInt()
 
-        val totalApplicants = confirmedCount + waitlistedCount
-
         val waitlistPosition: Int? =
             if (myReg?.status == RegistrationStatus.WAITLISTED) {
-                val waitlistedRegs =
-                    registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
-                        eventID = eventId,
-                        registrationStatus = RegistrationStatus.WAITLISTED,
-                    )
-                val idx = waitlistedRegs.indexOfFirst { it.id == myReg.id }
-                if (idx >= 0) idx + 1 else null
+                registrationRepository
+                    .findWaitlistPositionsByRegistrationPublicIds(
+                        eventId = eventId,
+                        status = RegistrationStatus.WAITLISTED,
+                        registrationPublicIds = listOf(myReg.registrationPublicId),
+                    ).firstOrNull()
+                    ?.waitlistNumber
+                    ?.toInt()
             } else {
                 null
             }
@@ -150,10 +149,7 @@ class EventService(
                     }
             }
 
-        val viewerName: String? =
-            requesterId?.let {
-                userRepository.findById(it).orElse(null)?.name
-            }
+        val viewerName: String? = requesterId?.let { usersById[it]?.name }
 
         val viewer =
             if (viewerStatus == ViewerStatus.NONE) {
@@ -184,18 +180,17 @@ class EventService(
                 registrationEndsAt = event.registrationEndsAt,
             )
 
-        val confirmedRegs =
+        val previewRegs =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventID = eventId,
                 registrationStatus = RegistrationStatus.CONFIRMED,
+                pageable = Pageable.ofSize(5),
             )
-
-        val previewRegs = confirmedRegs.take(5)
 
         val previewUserIds =
             previewRegs.mapNotNull { it.userId }.distinct()
 
-        val usersById =
+        val previewUsersById =
             userRepository.findAllById(previewUserIds).associateBy { it.id!! }
 
         val guestsPreview =
@@ -208,7 +203,7 @@ class EventService(
                         profileImage = null,
                     )
                 } else {
-                    usersById[uid]?.let {
+                    previewUsersById[uid]?.let {
                         GuestPreview(
                             id = it.id!!,
                             name = it.name,
@@ -276,19 +271,31 @@ class EventService(
         val sliced = fetched.take(pageSize)
         val nextCursor = sliced.lastOrNull()?.createdAt
 
+        val eventIds = sliced.map { requireNotNull(it.id) }
+
+        val confirmedCounts =
+            if (eventIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .countByEventIdsAndStatuses(eventIds = eventIds, listOf(RegistrationStatus.CONFIRMED))
+                    .associate { it.eventId to it.totalCount.toInt() }
+            }
+
+        val waitlistedCounts =
+            if (eventIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .countByEventIdsAndStatuses(eventIds = eventIds, listOf(RegistrationStatus.WAITLISTED))
+                    .associate { it.eventId to it.totalCount.toInt() }
+            }
+
         val responses =
             sliced.map { event ->
                 val eventId = requireNotNull(event.id)
-
-                val confirmedCount =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.CONFIRMED)
-                        .toInt()
-
-                val waitlistedCount =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.WAITLISTED)
-                        .toInt()
+                val confirmedCount = confirmedCounts[eventId] ?: 0
+                val waitlistedCount = waitlistedCounts[eventId] ?: 0
 
                 MyEventResponse(
                     publicId = event.publicId,
@@ -378,9 +385,10 @@ class EventService(
 
         // 알림 대상: CONFIRMED + WAITLISTED (BANNED 제외)
         val registrationsToNotify =
-            registrationRepository
-                .findByEventId(eventId)
-                .filter { it.status == RegistrationStatus.CONFIRMED || it.status == RegistrationStatus.WAITLISTED }
+            registrationRepository.findByEventIdAndStatusIn(
+                eventID = eventId,
+                statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+            )
 
         // 이메일 데이터 구성 (삭제 전에 user 정보 조회)
         val hostUser = userRepository.findById(event.createdBy).orElse(null)
