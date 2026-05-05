@@ -44,7 +44,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
@@ -73,6 +72,10 @@ dependencies {
     // OCI Vault - SDK 직접 사용 (waffle-oci-vault 2.1.0은 Spring Boot 3.5와 호환 안됨)
     implementation("com.oracle.oci.sdk:oci-java-sdk-secrets:3.80.1")
     implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.80.1")
+
+    // prometheus 의존성 추가
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
 }
 
 kotlin {
