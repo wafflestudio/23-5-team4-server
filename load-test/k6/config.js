@@ -1,5 +1,5 @@
-// 실행 시 -e BASE_URL=https://api.moiming.app 로 오버라이드 가능
-// 예) k6 run -e BASE_URL=https://api.moiming.app scenarios/01_auth.js
+// 실행 시 -e BASE_URL=https://moiming-dev-api.wafflestudio.com 으로 오버라이드 가능
+// 예) k6 run -e BASE_URL=https://moiming-dev-api.wafflestudio.com scenarios/01_auth.js
 export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 
 export const THRESHOLDS = {
