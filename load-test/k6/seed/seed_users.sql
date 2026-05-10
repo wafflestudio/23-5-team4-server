@@ -2,8 +2,8 @@
 -- 부하 테스트용 유저 seed
 -- 실행 전: BCRYPT_HASH 자리에 실제 해시값을 넣을 것
 --
--- BCrypt 해시 생성 방법 (비밀번호: Test1234!, rounds=10):
---   $ htpasswd -bnBC 10 "" Test1234! | tr -d ':\n'
+-- BCrypt 해시 생성 방법 (비밀번호: password123!, rounds=12):
+--   $ htpasswd -bnBC 12 "" password123! | tr -d ':\n'
 -- ============================================================
 
 SET @password_hash = '$2a$12$NZxQIubFeVpXYzCiruohjuzFZjA.UyGVeLtndK.KGpvDO.g6A3BcS';

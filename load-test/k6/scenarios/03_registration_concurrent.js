@@ -1,21 +1,36 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, fail } from 'k6';
+import { Rate } from 'k6/metrics';
 import { BASE_URL, THRESHOLDS, authHeaders } from '../config.js';
 import { login } from '../helpers/auth.js';
 import { createEvent, makeUserCredentials } from '../helpers/data.js';
 
 const VU_COUNT = 15;
 const CAPACITY = 4;
+const registrationConsistency = new Rate('registration_consistency');
 
 export const options = {
   thresholds: {
     ...THRESHOLDS,
     // 신청 자체는 정원 초과여도 200이므로 실패율 기준 유지
     http_req_failed: [{ threshold: 'rate<0.01' }],
+    // 핵심 경로(등록 API)만 따로 latency threshold를 건다.
+    'http_req_duration{endpoint:registration_create}': [
+      { threshold: 'p(95)<500', abortOnFail: false },
+      { threshold: 'p(99)<1000', abortOnFail: false },
+    ],
+    // teardown에서 기록하는 정합성 지표
+    registration_consistency: [{ threshold: 'rate==1' }],
   },
-  // 램프업 없이 즉시 100명 동시 실행 — 동시성 압박이 목적
-  vus: VU_COUNT,
-  iterations: VU_COUNT,
+  // 각 VU가 정확히 1회씩 실행되도록 고정한다.
+  scenarios: {
+    registration_concurrent: {
+      executor: 'per-vu-iterations',
+      vus: VU_COUNT,
+      iterations: 1,
+      maxDuration: '1m',
+    },
+  },
 };
 
 export function setup() {
@@ -40,7 +55,10 @@ export default function ({ publicId, tokens }) {
   const res = http.post(
     `${BASE_URL}/api/events/${publicId}/registrations`,
     JSON.stringify({}),
-    { headers: authHeaders(token) },
+    {
+      headers: authHeaders(token),
+      tags: { endpoint: 'registration_create' },
+    },
   );
 
   check(res, {
@@ -70,8 +88,24 @@ export function teardown({ publicId }) {
 
   const confirmed = allRegistrations.filter((r) => r.status === 'CONFIRMED').length;
   const waitlisted = allRegistrations.filter((r) => r.status === 'WAITLISTED').length;
+  const expectedWaitlisted = VU_COUNT - CAPACITY;
+  const isConsistent =
+    confirmed === CAPACITY &&
+    waitlisted === expectedWaitlisted &&
+    allRegistrations.length === VU_COUNT;
 
   console.log(`CONFIRMED: ${confirmed} (expected: ${CAPACITY})`);
-  console.log(`WAITLISTED: ${waitlisted} (expected: ${VU_COUNT - CAPACITY})`);
-  console.log(`동시성 이상 없음: ${confirmed === CAPACITY ? 'PASS' : 'FAIL'}`);
+  console.log(`WAITLISTED: ${waitlisted} (expected: ${expectedWaitlisted})`);
+  console.log(`TOTAL: ${allRegistrations.length} (expected: ${VU_COUNT})`);
+  console.log(`동시성 이상 없음: ${isConsistent ? 'PASS' : 'FAIL'}`);
+
+  registrationConsistency.add(isConsistent ? 1 : 0);
+  check(null, {
+    'concurrency consistency': () => isConsistent,
+  });
+  if (!isConsistent) {
+    fail(
+      `concurrency mismatch: confirmed=${confirmed}, waitlisted=${waitlisted}, total=${allRegistrations.length}`,
+    );
+  }
 }

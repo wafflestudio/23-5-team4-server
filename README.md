@@ -68,6 +68,11 @@ Springdoc OpenAPI가 활성화되어 있습니다. 로컬 실행 후 아래 경�
 
 - `/swagger-ui/index.html`
 
+## 부하 테스트 (k6)
+
+- 시나리오/seed 파일: `load-test/k6`
+- 순수 백엔드 동시성 검증(메일 전송 제외) 가이드는 `load-test/k6/README.md` 참고
+
 ## 데이터베이스 마이그레이션
 
 Flyway를 사용하며, SQL 파일은 다음 경로에 있습니다.

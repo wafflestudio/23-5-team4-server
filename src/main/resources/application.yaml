@@ -79,6 +79,9 @@ management:
 cors:
   allowed-origins: http://localhost:3000,http://localhost:5173
 
+registration:
+  email-notifications-enabled: ${REGISTRATION_EMAIL_NOTIFICATIONS_ENABLED:true}
+
 aws:
   s3:
     bucket: waffle-team4-web-temp

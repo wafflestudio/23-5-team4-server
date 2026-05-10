@@ -26,6 +26,7 @@ import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -47,6 +48,8 @@ RegistrationService(
     private val userRepository: UserRepository,
     private val emailService: EmailService,
     private val imageService: ImageService,
+    @Value("\${registration.email-notifications-enabled:true}")
+    private val registrationEmailNotificationsEnabled: Boolean,
 ) : WaitlistReconciliationService {
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
     private val tokenValidity = Duration.ofHours(24)
@@ -157,9 +160,12 @@ RegistrationService(
                 userRepository.findById(id).orElse(null)
             }
 
-        val recipientEmail = user?.email ?: guestEmail
+        if (registrationEmailNotificationsEnabled) {
+            val recipientEmail = user?.email ?: guestEmail
+            if (recipientEmail.isNullOrBlank()) {
+                throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_EMAIL)
+            }
 
-        if (!recipientEmail.isNullOrBlank()) {
             val confirmedCount =
                 registrationRepository
                     .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
@@ -192,8 +198,6 @@ RegistrationService(
             afterCommit {
                 emailService.sendRegistrationStatusEmail(emailData)
             }
-        } else {
-            throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_EMAIL)
         }
 
         return CreateRegistrationResponse(
@@ -259,41 +263,43 @@ RegistrationService(
             reconcileWaitlist(registration.eventId)
         }
 
-        val registrationUser =
-            registration.userId?.let { id ->
-                userRepository.findById(id).orElse(null)
-            }
+        if (registrationEmailNotificationsEnabled) {
+            val registrationUser =
+                registration.userId?.let { id ->
+                    userRepository.findById(id).orElse(null)
+                }
 
-        val recipientEmail = registrationUser?.email ?: registration.guestEmail
+            val recipientEmail = registrationUser?.email ?: registration.guestEmail
 
-        if (!recipientEmail.isNullOrBlank()) {
-            val confirmedCount =
-                registrationRepository
-                    .countByEventIdAndStatus(event.id!!, RegistrationStatus.CONFIRMED)
-                    .toInt()
-            val waitlistedCount =
-                registrationRepository
-                    .countByEventIdAndStatus(event.id!!, RegistrationStatus.WAITLISTED)
-                    .toInt()
-            val totalCount = confirmedCount + waitlistedCount
+            if (!recipientEmail.isNullOrBlank()) {
+                val confirmedCount =
+                    registrationRepository
+                        .countByEventIdAndStatus(event.id!!, RegistrationStatus.CONFIRMED)
+                        .toInt()
+                val waitlistedCount =
+                    registrationRepository
+                        .countByEventIdAndStatus(event.id!!, RegistrationStatus.WAITLISTED)
+                        .toInt()
+                val totalCount = confirmedCount + waitlistedCount
 
-            val emailData =
-                EmailService.RegistrationDeleteEmailData(
-                    toEmail = recipientEmail,
-                    name = registration.guestName ?: registrationUser?.name ?: "참여자",
-                    eventTitle = event.title,
-                    startsAt = event.startsAt,
-                    endsAt = event.endsAt,
-                    location = event.location,
-                    totalCount = totalCount,
-                    capacity = event.capacity,
-                    registrationStartsAt = event.registrationStartsAt,
-                    registrationEndsAt = event.registrationEndsAt,
-                    description = event.description,
-                )
+                val emailData =
+                    EmailService.RegistrationDeleteEmailData(
+                        toEmail = recipientEmail,
+                        name = registration.guestName ?: registrationUser?.name ?: "참여자",
+                        eventTitle = event.title,
+                        startsAt = event.startsAt,
+                        endsAt = event.endsAt,
+                        location = event.location,
+                        totalCount = totalCount,
+                        capacity = event.capacity,
+                        registrationStartsAt = event.registrationStartsAt,
+                        registrationEndsAt = event.registrationEndsAt,
+                        description = event.description,
+                    )
 
-            afterCommit {
-                emailService.sendRegistrationDeleteEmail(emailData)
+                afterCommit {
+                    emailService.sendRegistrationDeleteEmail(emailData)
+                }
             }
         }
     }
@@ -627,6 +633,8 @@ RegistrationService(
         registration: Registration,
         event: Event,
     ) {
+        if (!registrationEmailNotificationsEnabled) return
+
         val registrationUser =
             registration.userId?.let { uid ->
                 userRepository.findById(uid).orElse(null)
@@ -700,57 +708,59 @@ RegistrationService(
         val remainingWaitlisted = waitlistedRegs.size - promoted.size
         val totalCount = confirmedAfter + remainingWaitlisted
 
-        val emailDataList =
-            promoted.mapNotNull { registration ->
-                val user: User? =
-                    registration.userId?.let { uid ->
-                        userRepository.findById(uid).orElse(null)
+        if (registrationEmailNotificationsEnabled) {
+            val emailDataList =
+                promoted.mapNotNull { registration ->
+                    val user: User? =
+                        registration.userId?.let { uid ->
+                            userRepository.findById(uid).orElse(null)
+                        }
+
+                    val recipientEmail = user?.email ?: registration.guestEmail
+                    val recipientName = user?.name ?: registration.guestName ?: "참여자"
+                    val waitingNum = waitlistNumbers[registration.registrationPublicId]
+
+                    if (recipientEmail.isNullOrBlank()) {
+                        null
+                    } else {
+                        WaitlistPromotionEmailData(
+                            toEmail = recipientEmail,
+                            eventTitle = event.title,
+                            name = recipientName,
+                            waitingNum = waitingNum,
+                            startsAt = event.startsAt,
+                            endsAt = event.endsAt,
+                            location = event.location,
+                            totalCount = totalCount,
+                            capacity = capacity,
+                            registrationStartsAt = event.registrationStartsAt,
+                            registrationEndsAt = event.registrationEndsAt,
+                            description = event.description,
+                            eventPublicId = event.publicId,
+                            registrationPublicId = registration.registrationPublicId,
+                        )
                     }
+                }
 
-                val recipientEmail = user?.email ?: registration.guestEmail
-                val recipientName = user?.name ?: registration.guestName ?: "참여자"
-                val waitingNum = waitlistNumbers[registration.registrationPublicId]
-
-                if (recipientEmail.isNullOrBlank()) {
-                    null
-                } else {
-                    WaitlistPromotionEmailData(
-                        toEmail = recipientEmail,
-                        eventTitle = event.title,
-                        name = recipientName,
-                        waitingNum = waitingNum,
-                        startsAt = event.startsAt,
-                        endsAt = event.endsAt,
-                        location = event.location,
-                        totalCount = totalCount,
-                        capacity = capacity,
-                        registrationStartsAt = event.registrationStartsAt,
-                        registrationEndsAt = event.registrationEndsAt,
-                        description = event.description,
-                        eventPublicId = event.publicId,
-                        registrationPublicId = registration.registrationPublicId,
+            afterCommit {
+                emailDataList.forEach { data ->
+                    emailService.sendWaitlistPromotionEmail(
+                        toEmail = data.toEmail,
+                        eventTitle = data.eventTitle,
+                        name = data.name,
+                        waitingNum = data.waitingNum,
+                        startsAt = data.startsAt,
+                        endsAt = data.endsAt,
+                        location = data.location,
+                        totalCount = data.totalCount,
+                        capacity = data.capacity,
+                        registrationStartsAt = data.registrationStartsAt,
+                        registrationEndsAt = data.registrationEndsAt,
+                        description = data.description,
+                        eventPublicId = data.eventPublicId,
+                        registrationPublicId = data.registrationPublicId,
                     )
                 }
-            }
-
-        afterCommit {
-            emailDataList.forEach { data ->
-                emailService.sendWaitlistPromotionEmail(
-                    toEmail = data.toEmail,
-                    eventTitle = data.eventTitle,
-                    name = data.name,
-                    waitingNum = data.waitingNum,
-                    startsAt = data.startsAt,
-                    endsAt = data.endsAt,
-                    location = data.location,
-                    totalCount = data.totalCount,
-                    capacity = data.capacity,
-                    registrationStartsAt = data.registrationStartsAt,
-                    registrationEndsAt = data.registrationEndsAt,
-                    description = data.description,
-                    eventPublicId = data.eventPublicId,
-                    registrationPublicId = data.registrationPublicId,
-                )
             }
         }
     }
