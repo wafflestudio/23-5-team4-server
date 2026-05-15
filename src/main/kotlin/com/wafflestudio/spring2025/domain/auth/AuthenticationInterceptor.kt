@@ -17,11 +17,7 @@ class AuthenticationInterceptor : HandlerInterceptor {
         response: HttpServletResponse,
         handler: Any,
     ): Boolean {
-        logger.info("AuthenticationInterceptor pre-handle")
-
         val handlerMethod = handler as? HandlerMethod ?: return true
-        logger.info(handlerMethod.toString())
-
         val authRequired =
             handlerMethod.hasMethodAnnotation(AuthRequired::class.java) ||
                 handlerMethod.beanType.isAnnotationPresent(AuthRequired::class.java)

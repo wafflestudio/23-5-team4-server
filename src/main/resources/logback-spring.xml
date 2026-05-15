@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{requestId:-}] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- prod 외 (local, dev): 큐가 가득 차도 로그 버리지 않음 -->
+    <springProfile name="!prod">
+        <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+            <discardingThreshold>0</discardingThreshold>
+            <appender-ref ref="CONSOLE"/>
+        </appender>
+        <logger name="com.wafflestudio.spring2025" level="DEBUG"/>
+        <root level="INFO"><appender-ref ref="ASYNC"/></root>
+    </springProfile>
+
+    <!-- prod: 큐 80% 이상 시 DEBUG/INFO 버림 (기본값), 앱 코드 INFO -->
+    <springProfile name="prod">
+        <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="CONSOLE"/>
+        </appender>
+        <logger name="com.wafflestudio.spring2025" level="INFO"/>
+        <root level="WARN"><appender-ref ref="ASYNC"/></root>
+    </springProfile>
+</configuration>
