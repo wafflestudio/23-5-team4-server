@@ -14,7 +14,8 @@ data class MyEventResponse(
     val startsAt: Instant?,
     val endsAt: Instant?,
     val registrationStartsAt: Instant?,
-    val registrationEndsAt: Instant?,
+    val registrationEndsAt: Instant,
     val capacity: Int?,
-    val totalApplicants: Int,
+    val confirmedCount: Int,
+    val waitlistCount: Int,
 )

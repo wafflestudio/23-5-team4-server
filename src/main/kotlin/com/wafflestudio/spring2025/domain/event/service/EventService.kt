@@ -1,5 +1,6 @@
 package com.wafflestudio.spring2025.domain.event.service
 
+import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.common.image.service.ImageService
 import com.wafflestudio.spring2025.domain.event.dto.response.CapabilitiesInfo
 import com.wafflestudio.spring2025.domain.event.dto.response.CreatorInfo
@@ -12,7 +13,6 @@ import com.wafflestudio.spring2025.domain.event.dto.response.ViewerInfo
 import com.wafflestudio.spring2025.domain.event.dto.response.ViewerStatus
 import com.wafflestudio.spring2025.domain.event.exception.EventErrorCode
 import com.wafflestudio.spring2025.domain.event.exception.EventForbiddenException
-import com.wafflestudio.spring2025.domain.event.exception.EventHasConfirmedRegistrationsException
 import com.wafflestudio.spring2025.domain.event.exception.EventNotFoundException
 import com.wafflestudio.spring2025.domain.event.exception.EventValidationException
 import com.wafflestudio.spring2025.domain.event.model.Event
@@ -23,9 +23,12 @@ import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRe
 import com.wafflestudio.spring2025.domain.registration.service.WaitlistReconciliationService
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Instant
 import java.util.UUID
 
@@ -37,6 +40,7 @@ class EventService(
     private val waitlistReconciliationService: WaitlistReconciliationService,
     private val userRepository: UserRepository,
     private val imageService: ImageService,
+    private val emailService: EmailService,
 ) {
     /**
      * 일정 생성
@@ -50,15 +54,18 @@ class EventService(
         capacity: Int?,
         waitlistEnabled: Boolean,
         registrationStartsAt: Instant?,
-        registrationEndsAt: Instant?,
+        registrationEndsAt: Instant,
         createdBy: Long,
     ): String {
-        validateCreateOrUpdate(
+        val actualRegistrationStartsAt = registrationStartsAt ?: Instant.now()
+
+        validateCreateConstraints(registrationEndsAt)
+        validateInvariantConstraints(
             title = title,
+            capacity = capacity,
             startsAt = startsAt,
             endsAt = endsAt,
-            capacity = capacity,
-            registrationStartsAt = registrationStartsAt,
+            registrationStartsAt = actualRegistrationStartsAt,
             registrationEndsAt = registrationEndsAt,
         )
 
@@ -72,7 +79,7 @@ class EventService(
                 endsAt = endsAt,
                 capacity = capacity,
                 waitlistEnabled = waitlistEnabled,
-                registrationStartsAt = registrationStartsAt,
+                registrationStartsAt = actualRegistrationStartsAt,
                 registrationEndsAt = registrationEndsAt,
                 createdBy = createdBy,
             )
@@ -90,10 +97,9 @@ class EventService(
         val event = getEventByPublicId(publicId)
         val eventId = requireNotNull(event.id) { "Event id is null: publicId=$publicId" }
 
-        val creatorUser =
-            userRepository.findById(event.createdBy).orElseThrow {
-                EventNotFoundException()
-            }
+        val userIdsToFetch = listOfNotNull(event.createdBy, requesterId).distinct()
+        val usersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
+        val creatorUser = usersById[event.createdBy] ?: throw EventNotFoundException()
 
         val myReg =
             if (requesterId == null) {
@@ -115,17 +121,16 @@ class EventService(
                 .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.WAITLISTED)
                 .toInt()
 
-        val totalApplicants = confirmedCount + waitlistedCount
-
         val waitlistPosition: Int? =
             if (myReg?.status == RegistrationStatus.WAITLISTED) {
-                val waitlistedRegs =
-                    registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
-                        eventID = eventId,
-                        registrationStatus = RegistrationStatus.WAITLISTED,
-                    )
-                val idx = waitlistedRegs.indexOfFirst { it.id == myReg.id }
-                if (idx >= 0) idx + 1 else null
+                registrationRepository
+                    .findWaitlistPositionsByRegistrationPublicIds(
+                        eventId = eventId,
+                        status = RegistrationStatus.WAITLISTED,
+                        registrationPublicIds = listOf(myReg.registrationPublicId),
+                    ).firstOrNull()
+                    ?.waitlistNumber
+                    ?.toInt()
             } else {
                 null
             }
@@ -144,10 +149,7 @@ class EventService(
                     }
             }
 
-        val viewerName: String? =
-            requesterId?.let {
-                userRepository.findById(it).orElse(null)?.name
-            }
+        val viewerName: String? = requesterId?.let { usersById[it]?.name }
 
         val viewer =
             if (viewerStatus == ViewerStatus.NONE) {
@@ -178,18 +180,17 @@ class EventService(
                 registrationEndsAt = event.registrationEndsAt,
             )
 
-        val confirmedRegs =
+        val previewRegs =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventID = eventId,
                 registrationStatus = RegistrationStatus.CONFIRMED,
+                pageable = Pageable.ofSize(5),
             )
-
-        val previewRegs = confirmedRegs.take(5)
 
         val previewUserIds =
             previewRegs.mapNotNull { it.userId }.distinct()
 
-        val usersById =
+        val previewUsersById =
             userRepository.findAllById(previewUserIds).associateBy { it.id!! }
 
         val guestsPreview =
@@ -202,7 +203,7 @@ class EventService(
                         profileImage = null,
                     )
                 } else {
-                    usersById[uid]?.let {
+                    previewUsersById[uid]?.let {
                         GuestPreview(
                             id = it.id!!,
                             name = it.name,
@@ -222,7 +223,8 @@ class EventService(
                     startsAt = event.startsAt,
                     endsAt = event.endsAt,
                     capacity = event.capacity,
-                    totalApplicants = totalApplicants,
+                    confirmedCount = confirmedCount,
+                    waitlistCount = waitlistedCount,
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                 ),
@@ -269,19 +271,31 @@ class EventService(
         val sliced = fetched.take(pageSize)
         val nextCursor = sliced.lastOrNull()?.createdAt
 
+        val eventIds = sliced.map { requireNotNull(it.id) }
+
+        val confirmedCounts =
+            if (eventIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .countByEventIdsAndStatuses(eventIds = eventIds, listOf(RegistrationStatus.CONFIRMED))
+                    .associate { it.eventId to it.totalCount.toInt() }
+            }
+
+        val waitlistedCounts =
+            if (eventIds.isEmpty()) {
+                emptyMap()
+            } else {
+                registrationRepository
+                    .countByEventIdsAndStatuses(eventIds = eventIds, listOf(RegistrationStatus.WAITLISTED))
+                    .associate { it.eventId to it.totalCount.toInt() }
+            }
+
         val responses =
             sliced.map { event ->
                 val eventId = requireNotNull(event.id)
-
-                val confirmedCount =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.CONFIRMED)
-                        .toInt()
-
-                val waitlistedCount =
-                    registrationRepository
-                        .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.WAITLISTED)
-                        .toInt()
+                val confirmedCount = confirmedCounts[eventId] ?: 0
+                val waitlistedCount = waitlistedCounts[eventId] ?: 0
 
                 MyEventResponse(
                     publicId = event.publicId,
@@ -291,7 +305,8 @@ class EventService(
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                     capacity = event.capacity,
-                    totalApplicants = confirmedCount + waitlistedCount,
+                    confirmedCount = confirmedCount,
+                    waitlistCount = waitlistedCount,
                 )
             }
 
@@ -316,67 +331,95 @@ class EventService(
         registrationEndsAt: Instant?,
         requesterId: Long,
     ): Event {
-        val event = getEventByPublicId(publicId)
-        requireCreator(event, requesterId)
-        val eventId = requireNotNull(event.id) { "Event id is null: publicId=$publicId" }
-        eventLockRepository.lockById(eventId)
+        val eventForAuth = getEventByPublicId(publicId)
+        requireCreator(eventForAuth, requesterId)
+        val eventId = requireNotNull(eventForAuth.id) { "Event id is null: publicId=$publicId" }
+        if (!eventLockRepository.lockById(eventId)) throw EventNotFoundException()
+        val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
         val previousCapacity = event.capacity
 
-        val confirmedParticipants = countConfirmedParticipants(eventId)
-        validateParticipantAwareUpdate(
-            event = event,
-            registrationStartsAt = registrationStartsAt,
-            registrationEndsAt = registrationEndsAt,
-            capacity = capacity,
-            confirmedParticipants = confirmedParticipants,
+        val mergedTitle = title?.trim() ?: event.title
+        val mergedCapacity = capacity ?: event.capacity
+        val mergedStartsAt = startsAt ?: event.startsAt
+        val mergedEndsAt = endsAt ?: event.endsAt
+        val mergedRegistrationStartsAt = registrationStartsAt ?: event.registrationStartsAt
+        val mergedRegistrationEndsAt = registrationEndsAt ?: event.registrationEndsAt
+
+        validateInvariantConstraints(
+            title = mergedTitle,
+            capacity = mergedCapacity,
+            startsAt = mergedStartsAt,
+            endsAt = mergedEndsAt,
+            registrationStartsAt = mergedRegistrationStartsAt,
+            registrationEndsAt = mergedRegistrationEndsAt,
         )
 
-        title?.let {
-            if (it.isBlank()) throw EventValidationException(EventErrorCode.EVENT_TITLE_BLANK)
-            event.title = it.trim()
-        }
+        event.title = mergedTitle
         description?.let { event.description = it }
         location?.let { event.location = it }
-        startsAt?.let { event.startsAt = it }
-        endsAt?.let { event.endsAt = it }
-        capacity?.let { event.capacity = it }
+        event.startsAt = mergedStartsAt
+        event.endsAt = mergedEndsAt
+        event.capacity = mergedCapacity
         waitlistEnabled?.let { event.waitlistEnabled = it }
-        registrationStartsAt?.let { event.registrationStartsAt = it }
-        registrationEndsAt?.let { event.registrationEndsAt = it }
-
-        validateCreateOrUpdate(
-            title = event.title,
-            startsAt = event.startsAt,
-            endsAt = event.endsAt,
-            capacity = event.capacity,
-            registrationStartsAt = event.registrationStartsAt,
-            registrationEndsAt = event.registrationEndsAt,
-        )
+        event.registrationStartsAt = mergedRegistrationStartsAt
+        event.registrationEndsAt = mergedRegistrationEndsAt
 
         val savedEvent = eventRepository.save(event)
         if (isCapacityIncreased(previousCapacity, savedEvent.capacity)) {
             waitlistReconciliationService.reconcileWaitlist(eventId)
         }
+        if (isCapacityDecreased(previousCapacity, savedEvent.capacity)) {
+            waitlistReconciliationService.demoteToWaitlist(eventId, savedEvent.capacity!!)
+        }
         return savedEvent
     }
 
+    @Transactional
     fun delete(
         publicId: String,
         requesterId: Long,
     ) {
-        val event = getEventByPublicId(publicId)
+        val eventId = eventLockRepository.lockIdByPublicId(publicId) ?: throw EventNotFoundException()
+        val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
         requireCreator(event, requesterId)
-        val confirmedNumber =
-            registrationRepository
-                .countByEventIdAndStatus(
-                    eventID = requireNotNull(event.id),
-                    registrationStatus = RegistrationStatus.CONFIRMED,
-                ).toInt()
 
-        if (confirmedNumber > 0) {
-            throw EventHasConfirmedRegistrationsException()
-        } else {
-            eventRepository.deleteById(requireNotNull(event.id))
+        // 알림 대상: CONFIRMED + WAITLISTED (BANNED 제외)
+        val registrationsToNotify =
+            registrationRepository.findByEventIdAndStatusIn(
+                eventID = eventId,
+                statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+            )
+
+        // 이메일 데이터 구성 (삭제 전에 user 정보 조회)
+        val hostUser = userRepository.findById(event.createdBy).orElse(null)
+        val userIds = registrationsToNotify.mapNotNull { it.userId }.distinct()
+        val usersById = userRepository.findAllById(userIds).associateBy { it.id!! }
+
+        val emailDataList =
+            registrationsToNotify.mapNotNull { reg ->
+                val user = reg.userId?.let { usersById[it] }
+                val toEmail = user?.email ?: reg.guestEmail
+                if (toEmail.isNullOrBlank()) return@mapNotNull null
+                EmailService.EventCancellationEmailData(
+                    toEmail = toEmail,
+                    name = user?.name ?: reg.guestName ?: "참여자",
+                    eventTitle = event.title,
+                    startsAt = event.startsAt,
+                    endsAt = event.endsAt,
+                    location = event.location,
+                    description = event.description,
+                    hostEmail = hostUser?.email ?: "",
+                )
+            }
+
+        // FK 제약으로 인해 event 삭제 전 registrations 먼저 삭제
+        registrationRepository.deleteByEventId(eventId)
+        eventRepository.deleteById(eventId)
+
+        afterCommit {
+            emailDataList.forEach { data ->
+                emailService.sendEventCancellationEmail(data)
+            }
         }
     }
 
@@ -393,14 +436,22 @@ class EventService(
         }
     }
 
-    private fun validateCreateOrUpdate(
+    private fun validateCreateConstraints(
+        registrationEndsAt: Instant,
+        now: Instant = Instant.now(),
+    ) {
+        if (registrationEndsAt.isBefore(now)) {
+            throw EventValidationException(EventErrorCode.REGISTRATION_ENDS_IN_PAST)
+        }
+    }
+
+    private fun validateInvariantConstraints(
         title: String,
+        capacity: Int?,
         startsAt: Instant?,
         endsAt: Instant?,
-        capacity: Int?,
         registrationStartsAt: Instant?,
-        registrationEndsAt: Instant?,
-        now: Instant = Instant.now(),
+        registrationEndsAt: Instant,
     ) {
         // 제목 검증
         if (title.isBlank()) {
@@ -415,74 +466,26 @@ class EventService(
             throw EventValidationException(EventErrorCode.EVENT_CAPACITY_INVALID)
         }
 
-        // 모임 시간 검증
-        if (startsAt != null && startsAt.isBefore(now)) {
-            throw EventValidationException(EventErrorCode.EVENT_STARTS_IN_PAST)
-        }
-        if (endsAt != null && endsAt.isBefore(now)) {
-            throw EventValidationException(EventErrorCode.EVENT_ENDS_IN_PAST)
-        }
-        if (startsAt != null && endsAt != null && !startsAt.isBefore(endsAt)) {
+        // 모임 시간 검증: 일정 시작 ≤ 일정 끝
+        if (startsAt != null && endsAt != null && startsAt.isAfter(endsAt)) {
             throw EventValidationException(EventErrorCode.EVENT_TIME_RANGE_INVALID)
         }
 
-        // 신청 기간 검증
-        if (registrationStartsAt != null && registrationStartsAt.isBefore(now)) {
-            throw EventValidationException(EventErrorCode.REGISTRATION_STARTS_IN_PAST)
-        }
-        if (registrationEndsAt != null && registrationEndsAt.isBefore(now)) {
-            throw EventValidationException(EventErrorCode.REGISTRATION_ENDS_IN_PAST)
-        }
-        if (registrationStartsAt != null &&
-            registrationEndsAt != null &&
-            registrationStartsAt.isAfter(registrationEndsAt)
-        ) {
+        // 신청 기간 검증: 모집 시작 < 모집 마감 (strict)
+        if (registrationStartsAt != null && !registrationStartsAt.isBefore(registrationEndsAt)) {
             throw EventValidationException(EventErrorCode.REGISTRATION_TIME_RANGE_INVALID)
         }
-        if (registrationStartsAt != null &&
-            startsAt != null &&
-            registrationStartsAt.isAfter(startsAt)
-        ) {
+        // 모집 시작 ≤ 일정 시작
+        if (registrationStartsAt != null && startsAt != null && registrationStartsAt.isAfter(startsAt)) {
             throw EventValidationException(EventErrorCode.REGISTRATION_STARTS_AFTER_EVENT_START)
         }
-        if (registrationEndsAt != null &&
-            startsAt != null &&
-            registrationEndsAt.isAfter(startsAt)
-        ) {
+        // 모집 마감 ≤ 일정 시작
+        if (startsAt != null && registrationEndsAt.isAfter(startsAt)) {
             throw EventValidationException(EventErrorCode.REGISTRATION_ENDS_AFTER_EVENT_START)
         }
-    }
-
-    private fun countConfirmedParticipants(eventId: Long): Int =
-        registrationRepository
-            .countByEventIdAndStatus(eventID = eventId, registrationStatus = RegistrationStatus.CONFIRMED)
-            .toInt()
-
-    private fun validateParticipantAwareUpdate(
-        event: Event,
-        registrationStartsAt: Instant?,
-        registrationEndsAt: Instant?,
-        capacity: Int?,
-        confirmedParticipants: Int,
-        now: Instant = Instant.now(),
-    ) {
-        if (confirmedParticipants <= 0) return
-
-        if (registrationStartsAt != null &&
-            event.registrationStartsAt != null &&
-            registrationStartsAt.isAfter(event.registrationStartsAt)
-        ) {
-            throw EventValidationException(EventErrorCode.REGISTRATION_START_CANNOT_DELAY_WITH_PARTICIPANTS)
-        }
-
-        if (registrationEndsAt != null &&
-            registrationEndsAt.isBefore(now)
-        ) {
-            throw EventValidationException(EventErrorCode.REGISTRATION_END_CANNOT_ADVANCE_WITH_PARTICIPANTS)
-        }
-
-        if (capacity != null && capacity < confirmedParticipants) {
-            throw EventValidationException(EventErrorCode.CAPACITY_CANNOT_DECREASE_WITH_PARTICIPANTS)
+        // 모집 마감 ≤ 일정 끝 (행사시작 없을 때도 직접 체크)
+        if (endsAt != null && registrationEndsAt.isAfter(endsAt)) {
+            throw EventValidationException(EventErrorCode.REGISTRATION_ENDS_AFTER_EVENT_END)
         }
     }
 
@@ -491,18 +494,37 @@ class EventService(
         newCapacity: Int?,
     ): Boolean = previousCapacity != null && newCapacity != null && newCapacity > previousCapacity
 
+    private fun isCapacityDecreased(
+        previousCapacity: Int?,
+        newCapacity: Int?,
+    ): Boolean = previousCapacity != null && newCapacity != null && newCapacity < previousCapacity
+
+    private fun afterCommit(action: () -> Unit) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            action()
+            return
+        }
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun afterCommit() {
+                    action()
+                }
+            },
+        )
+    }
+
     private fun buildCapabilities(
         viewerStatus: ViewerStatus,
         capacity: Int?,
         confirmedCount: Int,
         waitlistEnabled: Boolean,
         registrationStartsAt: Instant?,
-        registrationEndsAt: Instant?,
+        registrationEndsAt: Instant,
         now: Instant = Instant.now(),
     ): CapabilitiesInfo {
         val withinWindow =
             (registrationStartsAt?.let { !now.isBefore(it) } ?: true) &&
-                (registrationEndsAt?.let { !now.isAfter(it) } ?: true)
+                !now.isAfter(registrationEndsAt)
 
         val isFull =
             capacity != null && confirmedCount >= capacity

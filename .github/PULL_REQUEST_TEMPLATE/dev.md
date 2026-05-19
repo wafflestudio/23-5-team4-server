@@ -2,6 +2,8 @@
 
 ### 🧪 로컬 테스트 여부 (작업자 체크)
 - [ ] 로컬에서 Swagger 혹은 테스트 코드로 동작을 확인했습니다.
+- [ ] API 변경이 있다면 `src/main/resources/static/docs/openapi.yaml`을 함께 갱신했습니다.
+- [ ] `/docs/swagger-ui.html`에서 변경 API가 의도대로 보이는지 확인했습니다.
 
 ### 📄 documentation 최신화 여부
 > 변경사항과 관련된 API의 swagger documentation이 실제 동작과 일치하는지 확인합니다.
