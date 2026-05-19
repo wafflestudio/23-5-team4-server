@@ -1,5 +1,6 @@
 package com.wafflestudio.spring2025.common.aop
 
+import com.wafflestudio.spring2025.common.exception.DomainException
 import org.aspectj.lang.annotation.AfterThrowing
 import org.aspectj.lang.annotation.Aspect
 import org.slf4j.LoggerFactory
@@ -15,6 +16,10 @@ class LoggingAspect {
         throwing = "ex",
     )
     fun logException(ex: Throwable) {
-        log.error("Unhandled exception in service", ex)
+        if (ex is DomainException && ex.httpErrorCode.is4xxClientError) {
+            log.warn("Expected domain exception: {}", ex.toString())
+        } else {
+            log.error("Unhandled exception in service", ex)
+        }
     }
 }
