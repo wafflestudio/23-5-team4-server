@@ -45,7 +45,7 @@ class UserController(
 
     @DeleteMapping("/me")
     fun deleteMe(
-        @Parameter(hidden = true) @LoggedInUser user: User,
+        @LoggedInUser user: User,
     ): ResponseEntity<Void> {
         userService.deleteMe(user = user)
         return ResponseEntity.noContent().build()
