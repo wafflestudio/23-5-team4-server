@@ -44,6 +44,12 @@ jwt:
 email:
   from-email: moiming@wafflestudio.com
   from-name: 모이밍
+  outbox:
+    enabled: true
+    poll-interval-ms: 1000
+    batch-size: 50
+    max-retry: 5
+    backoff-seconds: 30
 
 oauth:
   providers:

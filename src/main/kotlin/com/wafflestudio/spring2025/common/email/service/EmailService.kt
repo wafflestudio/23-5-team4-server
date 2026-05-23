@@ -89,6 +89,7 @@ class EmailService(
 
     data class RegistrationDeleteEmailData(
         val toEmail: String,
+        val registrationPublicId: String,
         val name: String,
         val eventTitle: String?,
         val startsAt: Instant?,
@@ -103,6 +104,7 @@ class EmailService(
 
     data class EventCancellationEmailData(
         val toEmail: String,
+        val eventPublicId: String,
         val name: String,
         val eventTitle: String?,
         val startsAt: Instant?,
@@ -126,6 +128,23 @@ class EmailService(
         val publicId: String,
         val registrationPublicId: String,
         val waitingNum: Int?,
+    )
+
+    data class WaitlistPromotionEmailData(
+        val toEmail: String,
+        val eventTitle: String?,
+        val name: String,
+        val waitingNum: Int?,
+        val startsAt: Instant?,
+        val endsAt: Instant?,
+        val location: String?,
+        val totalCount: Int?,
+        val capacity: Int?,
+        val registrationStartsAt: Instant?,
+        val registrationEndsAt: Instant?,
+        val description: String?,
+        val eventPublicId: String,
+        val registrationPublicId: String,
     )
 
     fun sendRegistrationStatusEmail(data: RegistrationStatusEmailData) {
@@ -276,6 +295,25 @@ class EmailService(
         )
 
         logger.info("정원 축소 대기 변경 알림이 ${data.toEmail} 로 전달되었습니다.")
+    }
+
+    fun sendWaitlistPromotionEmail(data: WaitlistPromotionEmailData) {
+        sendWaitlistPromotionEmail(
+            toEmail = data.toEmail,
+            eventTitle = data.eventTitle,
+            name = data.name,
+            waitingNum = data.waitingNum,
+            startsAt = data.startsAt,
+            endsAt = data.endsAt,
+            location = data.location,
+            totalCount = data.totalCount,
+            capacity = data.capacity,
+            registrationStartsAt = data.registrationStartsAt,
+            registrationEndsAt = data.registrationEndsAt,
+            description = data.description,
+            eventPublicId = data.eventPublicId,
+            registrationPublicId = data.registrationPublicId,
+        )
     }
 
     fun sendWaitlistPromotionEmail(

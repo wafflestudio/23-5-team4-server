@@ -1,5 +1,6 @@
 package com.wafflestudio.spring2025.domain.event.service
 
+import com.wafflestudio.spring2025.common.email.outbox.service.EmailOutboxProducer
 import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.common.image.service.ImageService
 import com.wafflestudio.spring2025.domain.event.dto.response.CapabilitiesInfo
@@ -27,8 +28,6 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.TransactionSynchronization
-import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Instant
 import java.util.UUID
 
@@ -40,7 +39,7 @@ class EventService(
     private val waitlistReconciliationService: WaitlistReconciliationService,
     private val userRepository: UserRepository,
     private val imageService: ImageService,
-    private val emailService: EmailService,
+    private val emailOutboxProducer: EmailOutboxProducer,
 ) {
     /**
      * 일정 생성
@@ -402,6 +401,7 @@ class EventService(
                 if (toEmail.isNullOrBlank()) return@mapNotNull null
                 EmailService.EventCancellationEmailData(
                     toEmail = toEmail,
+                    eventPublicId = event.publicId,
                     name = user?.name ?: reg.guestName ?: "참여자",
                     eventTitle = event.title,
                     startsAt = event.startsAt,
@@ -416,10 +416,8 @@ class EventService(
         registrationRepository.deleteByEventId(eventId)
         eventRepository.deleteById(eventId)
 
-        afterCommit {
-            emailDataList.forEach { data ->
-                emailService.sendEventCancellationEmail(data)
-            }
+        emailDataList.forEach { data ->
+            emailOutboxProducer.enqueueEventCancellation(data)
         }
     }
 
@@ -498,20 +496,6 @@ class EventService(
         previousCapacity: Int?,
         newCapacity: Int?,
     ): Boolean = previousCapacity != null && newCapacity != null && newCapacity < previousCapacity
-
-    private fun afterCommit(action: () -> Unit) {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            action()
-            return
-        }
-        TransactionSynchronizationManager.registerSynchronization(
-            object : TransactionSynchronization {
-                override fun afterCommit() {
-                    action()
-                }
-            },
-        )
-    }
 
     private fun buildCapabilities(
         viewerStatus: ViewerStatus,
