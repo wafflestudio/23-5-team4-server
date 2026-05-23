@@ -9,10 +9,10 @@ spring:
     password: somepassword
     driver-class-name: com.mysql.cj.jdbc.Driver
   mail:
-    host: email-smtp.us-east-1.amazonaws.com
+    host: smtp.email.ap-chuncheon-1.oci.oraclecloud.com
     port: 587
-    username: ${AWS_SES_SMTP_USERNAME:YOUR_SES_SMTP_USERNAME}
-    password: ${AWS_SES_SMTP_PASSWORD:YOUR_SES_SMTP_PASSWORD}
+    username: ${OCI_EMAIL_SMTP_USERNAME:YOUR_OCI_SMTP_USERNAME}
+    password: ${OCI_EMAIL_SMTP_PASSWORD:YOUR_OCI_SMTP_PASSWORD}
     properties:
       mail:
         smtp:
@@ -34,7 +34,7 @@ spring:
     enabled: true
   data:
     redis:
-      host: localhost
+      host: moiming-valkey
       port: 6379
 
 jwt:
@@ -42,15 +42,15 @@ jwt:
   expiration-in-ms: 86400000
 
 email:
-  from-email: no-reply@moiming.app
+  from-email: moiming@wafflestudio.com
   from-name: 모이밍
 
 oauth:
   providers:
     google:
-      client-id: ${GOOGLE_CLIENT_ID}
-      client-secret: ${GOOGLE_CLIENT_SECRET}
-      redirect-uri: ${GOOGLE_REDIRECT_URI}
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+      redirect-uri: ${GOOGLE_REDIRECT_URI:}
 
 logging:
   level:
@@ -68,7 +68,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info,prometheus,metrics
   endpoint:
     health:
       show-details: always
@@ -87,9 +87,48 @@ aws:
   allowed-origins: >
     http://localhost:3000,
     http://localhost:5173,
-    https://www.moiming.app,
-    https://moiming.app,
-    https://api.moiming.app
+    https://moiming.wafflestudio.com,
+    https://dev.moiming.wafflestudio.com,
+    https://api.moiming.wafflestudio.com
+    https://api.dev.moiming.wafflestudio.com
 
 server:
   forward-headers-strategy: framework
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    url: /docs/openapi.yaml
+    disable-swagger-default-url: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://10.0.30.217:3306/moiming_dev?allowPublicKeyRetrieval=true
+    username: moiming-dev
+    password:
+cors:
+  allowed-origins: ""
+oci:
+  vault:
+    secret-ids: ocid1.vaultsecret.oc1.ap-chuncheon-1.amaaaaaat2m5lbqaa3m45icdqcka43cvyzb4kb3ktuatfobwusnsdd4bvzkq
+    region: ap-chuncheon-1
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:mysql://10.0.30.217:3306/moiming_prod?allowPublicKeyRetrieval=true
+    username: moiming-prod
+cors:
+  allowed-origins: ""
+oci:
+  vault:
+    secret-ids: ocid1.vaultsecret.oc1.ap-chuncheon-1.amaaaaaat2m5lbqameflpkt7abivvrauqwheybzrkqipf7msv3ol6ikhd3aq
+    region: ap-chuncheon-1

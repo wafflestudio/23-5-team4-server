@@ -28,6 +28,7 @@ import com.wafflestudio.spring2025.domain.user.model.User
 import com.wafflestudio.spring2025.domain.user.repository.UserRepository
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
@@ -47,7 +48,7 @@ RegistrationService(
     private val userRepository: UserRepository,
     private val emailService: EmailService,
     private val imageService: ImageService,
-) {
+) : WaitlistReconciliationService {
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
     private val tokenValidity = Duration.ofHours(24)
 
@@ -55,44 +56,6 @@ RegistrationService(
     fun create(
         eventId: String,
         userId: Long?,
-        guestName: String?,
-        guestEmail: String?,
-    ): CreateRegistrationResponse =
-        createInternal(
-            userId = userId,
-            eventId = eventId,
-            guestName = guestName,
-            guestEmail = guestEmail,
-        )
-
-    @Transactional
-    fun delete(
-        registrationPublicId: String,
-        userId: Long?,
-        guestName: String?,
-        guestEmail: String?,
-    ): DeleteRegistrationResponse {
-        if (userId == null) {
-            if (guestName.isNullOrBlank()) {
-                throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_NAME)
-            }
-            if (guestEmail.isNullOrBlank()) {
-                throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_EMAIL)
-            }
-        }
-
-        deleteInternal(
-            userId = userId,
-            guestName = guestName,
-            guestEmail = guestEmail,
-            registrationPublicId = registrationPublicId,
-        )
-        return DeleteRegistrationResponse()
-    }
-
-    private fun createInternal(
-        userId: Long?,
-        eventId: String,
         guestName: String?,
         guestEmail: String?,
     ): CreateRegistrationResponse {
@@ -109,7 +72,7 @@ RegistrationService(
         val capacity = lockedEvent.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
         val currentConfirmed =
             registrationRepository
-                .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
+                .countByEventIdAndStatusWithLock(eventPk, RegistrationStatus.CONFIRMED)
                 .toInt()
 
         val status =
@@ -134,6 +97,11 @@ RegistrationService(
                 registrationRepository.findByUserIdAndEventId(userId, eventPk)
             }
 
+        val userIdsToFetch = listOfNotNull(lockedEvent.createdBy, userId).distinct()
+        val fetchedUsersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
+        val hostEmail = fetchedUsersById[lockedEvent.createdBy]?.email
+        val user = userId?.let { fetchedUsersById[it] }
+
         val saved =
             try {
                 if (existingRegistration != null) {
@@ -150,8 +118,7 @@ RegistrationService(
                         -> throw RegistrationConflictException(RegistrationErrorCode.REGISTRATION_ALREADY_EXISTS)
                     }
                 } else {
-                    val hostEmail = userRepository.findById(lockedEvent.createdBy).orElse(null)?.email
-                    val registrationEmail = userId?.let { userRepository.findById(it).orElse(null)?.email } ?: guestEmail
+                    val registrationEmail = user?.email ?: guestEmail
 
                     if (hostEmail != null && hostEmail == registrationEmail) {
                         throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_BLOCKED_HOST)
@@ -181,19 +148,11 @@ RegistrationService(
                 throw RegistrationConflictException(RegistrationErrorCode.REGISTRATION_ALREADY_EXISTS)
             }
 
-        val waitlistedNumber: Int? =
-            if (saved.status == RegistrationStatus.WAITLISTED) {
-                registrationRepository
-                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
-                    .toInt()
-            } else {
-                null
-            }
-
-        val user =
-            userId?.let { id ->
-                userRepository.findById(id).orElse(null)
-            }
+        val waitlistedCount =
+            registrationRepository
+                .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
+                .toInt()
+        val waitlistedNumber: Int? = if (saved.status == RegistrationStatus.WAITLISTED) waitlistedCount else null
 
         val recipientEmail = user?.email ?: guestEmail
 
@@ -201,10 +160,6 @@ RegistrationService(
             val confirmedCount =
                 registrationRepository
                     .countByEventIdAndStatus(eventPk, RegistrationStatus.CONFIRMED)
-                    .toInt()
-            val waitlistedCount =
-                registrationRepository
-                    .countByEventIdAndStatus(eventPk, RegistrationStatus.WAITLISTED)
                     .toInt()
             val totalCount = confirmedCount + waitlistedCount
 
@@ -239,30 +194,45 @@ RegistrationService(
         )
     }
 
+    @Transactional
+    fun delete(
+        registrationPublicId: String,
+        userId: Long?,
+    ): DeleteRegistrationResponse {
+        deleteInternal(
+            userId = userId,
+            registrationPublicId = registrationPublicId,
+        )
+        return DeleteRegistrationResponse()
+    }
+
     private fun deleteInternal(
         userId: Long?,
-        guestName: String?,
-        guestEmail: String?,
         registrationPublicId: String,
     ) {
-        val registration =
+        // eventId를 얻기 위한 미리보기 조회 (락 없음)
+        val preview =
             registrationRepository.findByRegistrationPublicId(registrationPublicId)
                 ?: throw RegistrationNotFoundException()
 
+        // 이벤트 업데이트와 경합 시 취소 가능 시점 판정을 일관되게 하기 위해 선락
+        eventLockRepository.lockById(preview.eventId)
         val event =
-            eventRepository.findById(registration.eventId).orElseThrow { EventNotFoundException() }
+            eventRepository.findById(preview.eventId).orElseThrow { EventNotFoundException() }
 
-        if (userId != null) {
+        // 이벤트 락 획득 후 registration 행 락
+        val registration =
+            registrationRepository.lockByRegistrationPublicId(registrationPublicId)
+                ?: throw RegistrationNotFoundException()
+
+        if (registration.userId != null) {
             if (registration.userId != userId) {
                 throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_DELETE_UNAUTHORIZED)
             }
-        } else {
-            if (registration.userId != null ||
-                registration.guestName != guestName ||
-                registration.guestEmail != guestEmail
-            ) {
-                throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_DELETE_UNAUTHORIZED)
-            }
+        }
+
+        if (!isRegistrationEnabled(event)) {
+            throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
         }
 
         val wasConfirmed = registration.status == RegistrationStatus.CONFIRMED
@@ -336,11 +306,18 @@ RegistrationService(
                 event.id ?: throw EventNotFoundException()
             }
 
-        val countsByEventId =
+        val confirmedCountsByEventId =
             registrationRepository
                 .countByEventIdsAndStatuses(
                     eventIds = eventIds,
-                    statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+                    statuses = listOf(RegistrationStatus.CONFIRMED),
+                ).associate { it.eventId to it.totalCount.toInt() }
+
+        val waitlistCountsByEventId =
+            registrationRepository
+                .countByEventIdsAndStatuses(
+                    eventIds = eventIds,
+                    statuses = listOf(RegistrationStatus.WAITLISTED),
                 ).associate { it.eventId to it.totalCount.toInt() }
 
         val waitlistedByRegistrationId =
@@ -361,7 +338,8 @@ RegistrationService(
                 MyRegistrationItem(
                     registration = registration,
                     event = event,
-                    registrationCnt = countsByEventId[registration.eventId] ?: 0,
+                    confirmedCount = confirmedCountsByEventId[registration.eventId] ?: 0,
+                    waitlistCount = waitlistCountsByEventId[registration.eventId] ?: 0,
                     waitlistedNum = waitlistedNumber,
                 )
             }
@@ -387,12 +365,8 @@ RegistrationService(
             registrationRepository.lockByRegistrationPublicId(registrationId)
                 ?: throw RegistrationNotFoundException()
 
-        if (!isRegistrationEnabled(event)) {
-            throw RegistrationValidationException(RegistrationErrorCode.NOT_WITHIN_REGISTRATION_WINDOW)
-        }
-
         val isHost = userId != null && userId == event.createdBy
-        val isRegistrant = userId != null && registration.userId == userId
+//        val isRegistrant = userId != null && registration.userId == userId
 
         if (status == RegistrationStatus.BANNED && !isHost) {
             throw RegistrationForbiddenException(RegistrationErrorCode.REGISTRATION_PATCH_UNAUTHORIZED)
@@ -580,13 +554,14 @@ RegistrationService(
         val status = registration.status
         val waitlistPosition =
             if (status == RegistrationStatus.WAITLISTED) {
-                val waitlistedRegs =
-                    registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
-                        registration.eventId,
-                        RegistrationStatus.WAITLISTED,
-                    )
-                val idx = waitlistedRegs.indexOfFirst { it.id == registration.id }
-                if (idx >= 0) idx + 1 else 0
+                registrationRepository
+                    .findWaitlistPositionsByRegistrationPublicIds(
+                        eventId = registration.eventId,
+                        status = RegistrationStatus.WAITLISTED,
+                        registrationPublicIds = listOf(registration.registrationPublicId),
+                    ).firstOrNull()
+                    ?.waitlistNumber
+                    ?.toInt() ?: 0
             } else {
                 0
             }
@@ -617,14 +592,9 @@ RegistrationService(
     }
 
     private fun isRegistrationEnabled(event: Event): Boolean {
-        val registrationStartsAt = event.registrationStartsAt
-        val registrationEndsAt = event.registrationEndsAt
         val now = Instant.now()
-
-        // null 정책: 시작/끝이 null이면 제한 없는 것으로 취급
-        val afterStart = registrationStartsAt?.let { !now.isBefore(it) } ?: true
-        val beforeEnd = registrationEndsAt?.let { !now.isAfter(it) } ?: true
-
+        val afterStart = event.registrationStartsAt?.let { !now.isBefore(it) } ?: true
+        val beforeEnd = !now.isAfter(event.registrationEndsAt)
         return afterStart && beforeEnd
     }
 
@@ -682,7 +652,68 @@ RegistrationService(
     }
 
     @Transactional
-    fun reconcileWaitlist(eventId: Long) {
+    override fun demoteToWaitlist(
+        eventId: Long,
+        newCapacity: Int,
+    ) {
+        eventLockRepository.lockById(eventId)
+
+        val event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
+
+        val confirmedRegs =
+            registrationRepository.findByEventIdAndStatusOrderByCreatedAtDescIdDesc(
+                eventId,
+                RegistrationStatus.CONFIRMED,
+            )
+
+        val excessCount = confirmedRegs.size - newCapacity
+        if (excessCount <= 0) return
+
+        val toDemote = confirmedRegs.take(excessCount)
+        toDemote.forEach { it.status = RegistrationStatus.WAITLISTED }
+        registrationRepository.saveAll(toDemote)
+
+        val demotedPublicIds = toDemote.map { it.registrationPublicId }
+        val waitlistPositions =
+            registrationRepository
+                .findWaitlistPositionsByRegistrationPublicIds(
+                    eventId = eventId,
+                    status = RegistrationStatus.WAITLISTED,
+                    registrationPublicIds = demotedPublicIds,
+                ).associate { it.registrationPublicId to it.waitlistNumber.toInt() }
+
+        val userIds = toDemote.mapNotNull { it.userId }.distinct()
+        val usersById = userRepository.findAllById(userIds).associateBy { it.id!! }
+
+        val emailDataList =
+            toDemote.mapNotNull { reg ->
+                val user = reg.userId?.let { usersById[it] }
+                val toEmail = user?.email ?: reg.guestEmail
+                if (toEmail.isNullOrBlank()) return@mapNotNull null
+                EmailService.DemotionEmailData(
+                    toEmail = toEmail,
+                    name = user?.name ?: reg.guestName ?: "참여자",
+                    eventTitle = event.title,
+                    startsAt = event.startsAt,
+                    endsAt = event.endsAt,
+                    location = event.location,
+                    newCapacity = newCapacity,
+                    registrationStartsAt = event.registrationStartsAt,
+                    registrationEndsAt = event.registrationEndsAt,
+                    description = event.description,
+                    publicId = event.publicId,
+                    registrationPublicId = reg.registrationPublicId,
+                    waitingNum = waitlistPositions[reg.registrationPublicId],
+                )
+            }
+
+        afterCommit {
+            emailDataList.forEach { emailService.sendDemotionEmail(it) }
+        }
+    }
+
+    @Transactional
+    override fun reconcileWaitlist(eventId: Long) {
         eventLockRepository.lockById(eventId)
 
         val event: Event = eventRepository.findById(eventId).orElseThrow { EventNotFoundException() }
@@ -690,35 +721,38 @@ RegistrationService(
 
         val capacity = event.capacity ?: throw IllegalStateException("이벤트의 capacity가 설정되어 있지 않습니다.")
         val confirmed =
-            registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.CONFIRMED).toInt()
+            registrationRepository.countByEventIdAndStatusWithLock(eventId, RegistrationStatus.CONFIRMED).toInt()
         val available = capacity - confirmed
         if (available <= 0) return
 
-        val waitlistedRegs =
+        val totalWaitlisted =
+            registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED).toInt()
+
+        val promoted =
             registrationRepository.findByEventIdAndStatusOrderByCreatedAtAsc(
                 eventId,
                 RegistrationStatus.WAITLISTED,
+                Pageable.ofSize(available),
             )
 
         val waitlistNumbers =
-            waitlistedRegs.withIndex().associate { indexed ->
-                indexed.value.registrationPublicId to (indexed.index + 1)
+            promoted.withIndex().associate { (index, reg) ->
+                reg.registrationPublicId to (index + 1)
             }
 
-        val promoted = waitlistedRegs.take(available)
         promoted.forEach { it.status = RegistrationStatus.CONFIRMED }
         registrationRepository.saveAll(promoted)
 
         val confirmedAfter = confirmed + promoted.size
-        val remainingWaitlisted = waitlistedRegs.size - promoted.size
+        val remainingWaitlisted = totalWaitlisted - promoted.size
         val totalCount = confirmedAfter + remainingWaitlisted
+
+        val promotedUserIds = promoted.mapNotNull { it.userId }.distinct()
+        val promotedUsersById = userRepository.findAllById(promotedUserIds).associateBy { it.id!! }
 
         val emailDataList =
             promoted.mapNotNull { registration ->
-                val user: User? =
-                    registration.userId?.let { uid ->
-                        userRepository.findById(uid).orElse(null)
-                    }
+                val user: User? = registration.userId?.let { promotedUsersById[it] }
 
                 val recipientEmail = user?.email ?: registration.guestEmail
                 val recipientName = user?.name ?: registration.guestName ?: "참여자"

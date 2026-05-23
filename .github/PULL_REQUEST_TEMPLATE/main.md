@@ -1,0 +1,17 @@
+## 🚀 Production PR (to main)
+
+### 🧪 테스트 여부
+- [ ] dev 서버 배포 성공
+- [ ] CI 성공
+- [ ] 환경 변수 설정 확인
+- [ ] dev 서버에서 변경사항에 대해 의도대로 동작함을 확인
+- [ ] API 변경이 있다면 `src/main/resources/static/docs/openapi.yaml` 반영 완료
+
+### 📝 업데이트 사항 요약
+
+- 
+
+### 🔥 관련 이슈
+<!--hotfix 브랜치가 아닌 경우 (직접 연결된 이슈 없는 경우) 삭제-->
+- closes #
+
