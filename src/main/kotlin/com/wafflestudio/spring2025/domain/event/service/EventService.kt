@@ -423,6 +423,54 @@ class EventService(
         }
     }
 
+    /**
+     * 유저 탈퇴 시 호출. 시작 전(now < startsAt) 이벤트들을 일괄 삭제하고
+     * 참여자/대기자에게 익명화된 주최자 정보로 취소 메일을 발송한다.
+     * 소유권 체크는 호출 측에서 보장.
+     */
+    @Transactional
+    fun deleteEventsForWithdrawal(events: List<Event>) {
+        if (events.isEmpty()) return
+        val eventIds = events.map { it.id!! }.sorted()
+
+        // 락 획득 (ID 오름차순으로 deadlock 방지)
+        eventIds.forEach { eventLockRepository.lockById(it) }
+
+        val eventsById = events.associateBy { it.id!! }
+        val registrations =
+            registrationRepository.findByEventIdInAndStatusIn(
+                eventIds = eventIds,
+                statuses = listOf(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED),
+            )
+        val userIds = registrations.mapNotNull { it.userId }.distinct()
+        val usersById = userRepository.findAllById(userIds).associateBy { it.id!! }
+
+        val emailDataList =
+            registrations.mapNotNull { reg ->
+                val event = eventsById[reg.eventId] ?: return@mapNotNull null
+                val user = reg.userId?.let { usersById[it] }
+                val toEmail = user?.email ?: reg.guestEmail
+                if (toEmail.isNullOrBlank()) return@mapNotNull null
+                EmailService.EventCancellationEmailData(
+                    toEmail = toEmail,
+                    name = user?.name ?: reg.guestName ?: "참여자",
+                    eventTitle = event.title,
+                    startsAt = event.startsAt,
+                    endsAt = event.endsAt,
+                    location = event.location,
+                    description = event.description,
+                    hostEmail = null,
+                )
+            }
+
+        registrationRepository.deleteByEventIdIn(eventIds)
+        eventRepository.deleteAllById(eventIds)
+
+        afterCommit {
+            emailDataList.forEach { emailService.sendEventCancellationEmail(it) }
+        }
+    }
+
     private fun getEventByPublicId(publicId: String): Event =
         eventRepository.findByPublicId(publicId)
             ?: throw EventNotFoundException()
