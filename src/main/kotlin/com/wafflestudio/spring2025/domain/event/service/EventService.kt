@@ -99,7 +99,7 @@ class EventService(
 
         val userIdsToFetch = listOfNotNull(event.createdBy, requesterId).distinct()
         val usersById = userRepository.findAllById(userIdsToFetch).associateBy { it.id!! }
-        val creatorUser = usersById[event.createdBy] ?: throw EventNotFoundException()
+        val creatorUser = event.createdBy?.let { usersById[it] }
 
         val myReg =
             if (requesterId == null) {
@@ -230,9 +230,9 @@ class EventService(
                 ),
             creator =
                 CreatorInfo(
-                    name = creatorUser.name,
-                    email = creatorUser.email,
-                    profileImage = creatorUser.profileImage?.let { imageService.presignedGetUrl(it) },
+                    name = creatorUser?.name ?: "탈퇴유저",
+                    email = creatorUser?.email,
+                    profileImage = creatorUser?.profileImage?.let { imageService.presignedGetUrl(it) },
                 ),
             viewer = viewer,
             capabilities = capabilities,
@@ -391,7 +391,7 @@ class EventService(
             )
 
         // 이메일 데이터 구성 (삭제 전에 user 정보 조회)
-        val hostUser = userRepository.findById(event.createdBy).orElse(null)
+        val hostUser = event.createdBy?.let { userRepository.findById(it).orElse(null) }
         val userIds = registrationsToNotify.mapNotNull { it.userId }.distinct()
         val usersById = userRepository.findAllById(userIds).associateBy { it.id!! }
 
@@ -408,7 +408,7 @@ class EventService(
                     endsAt = event.endsAt,
                     location = event.location,
                     description = event.description,
-                    hostEmail = hostUser?.email ?: "",
+                    hostEmail = hostUser?.email,
                 )
             }
 

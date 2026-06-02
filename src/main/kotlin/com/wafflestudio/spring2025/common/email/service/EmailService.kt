@@ -109,7 +109,7 @@ class EmailService(
         val endsAt: Instant?,
         val location: String?,
         val description: String?,
-        val hostEmail: String,
+        val hostEmail: String?,
     )
 
     data class DemotionEmailData(
@@ -240,7 +240,7 @@ class EmailService(
                 .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                 .replace("{location}", formatLocation(data.location))
-                .replace("{hostEmail}", data.hostEmail)
+                .replace("{hostEmail}", data.hostEmail ?: "탈퇴유저")
                 .replace("{description}", formatDescription(data.description))
 
         sendHtmlEmail(

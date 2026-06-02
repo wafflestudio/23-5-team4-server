@@ -13,7 +13,7 @@ data class EventDto(
     val waitlistEnabled: Boolean,
     val registrationStartsAt: Long?,
     val registrationEndsAt: Long,
-    val createdBy: Long,
+    val createdBy: Long?,
     val createdAt: Long?,
     val updatedAt: Long?,
 ) {
