@@ -14,6 +14,18 @@ interface RegistrationRepository :
 
     fun deleteByEventId(eventId: Long)
 
+    fun deleteByEventIdIn(eventIds: Collection<Long>)
+
+    fun findByUserIdAndStatusIn(
+        userId: Long,
+        statuses: Collection<RegistrationStatus>,
+    ): List<Registration>
+
+    fun findByEventIdInAndStatusIn(
+        eventIds: Collection<Long>,
+        statuses: Collection<RegistrationStatus>,
+    ): List<Registration>
+
     fun findByRegistrationPublicId(registrationPublicId: String): Registration?
 
     @Query(
