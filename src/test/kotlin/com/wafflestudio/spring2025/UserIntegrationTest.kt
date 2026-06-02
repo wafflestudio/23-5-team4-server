@@ -1,12 +1,21 @@
 package com.wafflestudio.spring2025
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.common.image.service.ImageService
 import com.wafflestudio.spring2025.domain.auth.dto.LoginRequest
+import com.wafflestudio.spring2025.domain.event.repository.EventRepository
+import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
+import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import com.wafflestudio.spring2025.domain.user.dto.PatchMeRequest
+import com.wafflestudio.spring2025.domain.user.repository.UserRepository
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
 import org.mockito.BDDMockito.given
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
@@ -15,6 +24,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -24,6 +34,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException
+import java.time.Instant
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -36,6 +47,9 @@ class UserIntegrationTest
         private val mvc: MockMvc,
         private val mapper: ObjectMapper,
         private val dataGenerator: DataGenerator,
+        private val eventRepository: EventRepository,
+        private val registrationRepository: RegistrationRepository,
+        private val userRepository: UserRepository,
     ) {
         // UserService.validateProfileImage 에서 직접 호출하는 S3Client 모킹
         @MockitoBean
@@ -44,6 +58,10 @@ class UserIntegrationTest
         // UserService.me 에서 presignedGetUrl 호출 시 실제 AWS 호출 방지
         @MockitoBean
         private lateinit var imageService: ImageService
+
+        // 탈퇴 시나리오의 메일 호출 검증용
+        @MockitoBean
+        private lateinit var emailService: EmailService
 
         // =================================================================
         // GET /api/users/me — 내 정보 조회
@@ -335,5 +353,159 @@ class UserIntegrationTest
                         ).contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isUnauthorized)
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+        }
+
+        // =================================================================
+        // DELETE /api/users/me — 회원 탈퇴
+        // =================================================================
+
+        @Test
+        fun `시작된 이벤트를 주최한 유저가 탈퇴하면 이벤트는 유지되고 createdBy가 null이 된다`() {
+            val (host, token) = dataGenerator.generateUser()
+            // 이미 시작된 이벤트 (startsAt 과거, registrationEndsAt 과거)
+            val event =
+                dataGenerator.createEvent(
+                    createdBy = host.id!!,
+                    startsAt = Instant.now().minusSeconds(3600),
+                    endsAt = Instant.now().plusSeconds(3600),
+                    registrationStartsAt = Instant.now().minusSeconds(7200),
+                    registrationEndsAt = Instant.now().minusSeconds(60),
+                )
+
+            mvc
+                .perform(
+                    delete("/api/users/me")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isNoContent)
+
+            val anonymized = eventRepository.findById(event.id!!).orElseThrow()
+            assertThat(anonymized.createdBy).isNull()
+            assertThat(userRepository.findById(host.id!!)).isEmpty
+        }
+
+        @Test
+        fun `시작 전 이벤트를 주최한 유저가 탈퇴하면 이벤트와 등록이 삭제되고 참여자에게 취소 메일이 발송된다`() {
+            val (host, token) = dataGenerator.generateUser()
+            val (participant, _) = dataGenerator.generateUser()
+            val event =
+                dataGenerator.createEvent(
+                    createdBy = host.id!!,
+                    startsAt = Instant.now().plusSeconds(7200),
+                )
+            val registration =
+                dataGenerator.createRegistration(
+                    eventId = event.id!!,
+                    userId = participant.id!!,
+                    status = RegistrationStatus.CONFIRMED,
+                )
+
+            mvc
+                .perform(
+                    delete("/api/users/me")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isNoContent)
+
+            assertThat(eventRepository.findById(event.id!!)).isEmpty
+            assertThat(registrationRepository.findById(registration.id!!)).isEmpty
+
+            verify(emailService, times(1)).sendEventCancellationEmail(
+                argThat { data ->
+                    data.toEmail == participant.email && data.hostEmail == null
+                },
+            )
+        }
+
+        @Test
+        fun `신청기간이 마감된 모임에 등록한 유저가 탈퇴하면 등록이 익명화된다`() {
+            val (host, _) = dataGenerator.generateUser()
+            val (participant, token) = dataGenerator.generateUser()
+            // 신청기간 마감, 이벤트는 아직 안 시작
+            val event =
+                dataGenerator.createEvent(
+                    createdBy = host.id!!,
+                    startsAt = Instant.now().plusSeconds(3600),
+                    endsAt = Instant.now().plusSeconds(7200),
+                    registrationStartsAt = Instant.now().minusSeconds(7200),
+                    registrationEndsAt = Instant.now().minusSeconds(60),
+                )
+            val registration =
+                dataGenerator.createRegistration(
+                    eventId = event.id!!,
+                    userId = participant.id!!,
+                    status = RegistrationStatus.CONFIRMED,
+                )
+
+            mvc
+                .perform(
+                    delete("/api/users/me")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isNoContent)
+
+            val anonymized = registrationRepository.findById(registration.id!!).orElseThrow()
+            assertThat(anonymized.userId).isNull()
+            assertThat(anonymized.guestName).isEqualTo("탈퇴유저")
+            assertThat(anonymized.guestEmail).isNull()
+        }
+
+        @Test
+        fun `신청기간 내 모임에 CONFIRMED 등록한 유저가 탈퇴하면 등록이 삭제되고 대기자가 승격된다`() {
+            val (host, _) = dataGenerator.generateUser()
+            val (withdrawingUser, token) = dataGenerator.generateUser()
+            val (waitlisted, _) = dataGenerator.generateUser()
+            // 정원 1, 대기 허용. 탈퇴 유저는 CONFIRMED, 다른 유저는 WAITLISTED
+            val event =
+                dataGenerator.createEvent(
+                    createdBy = host.id!!,
+                    capacity = 1,
+                    waitlistEnabled = true,
+                )
+            val withdrawingReg =
+                dataGenerator.createRegistration(
+                    eventId = event.id!!,
+                    userId = withdrawingUser.id!!,
+                    status = RegistrationStatus.CONFIRMED,
+                )
+            val waitlistedReg =
+                dataGenerator.createRegistration(
+                    eventId = event.id!!,
+                    userId = waitlisted.id!!,
+                    status = RegistrationStatus.WAITLISTED,
+                )
+
+            mvc
+                .perform(
+                    delete("/api/users/me")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isNoContent)
+
+            assertThat(registrationRepository.findById(withdrawingReg.id!!)).isEmpty
+            val promoted = registrationRepository.findById(waitlistedReg.id!!).orElseThrow()
+            assertThat(promoted.status).isEqualTo(RegistrationStatus.CONFIRMED)
+            assertThat(promoted.userId).isEqualTo(waitlisted.id)
+        }
+
+        @Test
+        fun `BANNED 등록만 있는 유저도 정상 탈퇴되고 BANNED 등록이 익명화된다`() {
+            val (host, _) = dataGenerator.generateUser()
+            val (bannedUser, token) = dataGenerator.generateUser()
+            val event = dataGenerator.createEvent(createdBy = host.id!!)
+            val bannedReg =
+                dataGenerator.createRegistration(
+                    eventId = event.id!!,
+                    userId = bannedUser.id!!,
+                    status = RegistrationStatus.BANNED,
+                )
+
+            mvc
+                .perform(
+                    delete("/api/users/me")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isNoContent)
+
+            assertThat(userRepository.findById(bannedUser.id!!)).isEmpty
+            val anonymized = registrationRepository.findById(bannedReg.id!!).orElseThrow()
+            assertThat(anonymized.userId).isNull()
+            assertThat(anonymized.status).isEqualTo(RegistrationStatus.BANNED)
+            assertThat(anonymized.guestName).isEqualTo("탈퇴유저")
         }
     }
