@@ -1,12 +1,14 @@
 package com.wafflestudio.spring2025.common.email.outbox.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.wafflestudio.spring2025.common.email.outbox.event.EmailOutboxCreatedEvent
 import com.wafflestudio.spring2025.common.email.outbox.model.EmailOutbox
 import com.wafflestudio.spring2025.common.email.outbox.model.EmailOutboxEventType
 import com.wafflestudio.spring2025.common.email.outbox.repository.EmailOutboxRepository
 import com.wafflestudio.spring2025.common.email.service.EmailService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Component
@@ -19,6 +21,7 @@ import java.time.Instant
 class EmailOutboxProducer(
     private val emailOutboxRepository: EmailOutboxRepository,
     private val objectMapper: ObjectMapper,
+    private val eventPublisher: ApplicationEventPublisher,
     @Value("\${email.outbox.max-retry:5}")
     private val maxRetryCount: Int,
 ) {
@@ -92,7 +95,10 @@ class EmailOutboxProducer(
             )
 
         try {
-            emailOutboxRepository.save(outbox)
+            val saved = emailOutboxRepository.save(outbox)
+            saved.id?.let { id ->
+                eventPublisher.publishEvent(EmailOutboxCreatedEvent(id))
+            }
         } catch (ex: Exception) {
             if (isDuplicateOutboxException(ex)) {
                 logger.info("중복 outbox 메시지 스킵: {}", normalizedMessageKey)

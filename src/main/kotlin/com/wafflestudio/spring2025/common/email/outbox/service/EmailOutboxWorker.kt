@@ -1,6 +1,7 @@
 package com.wafflestudio.spring2025.common.email.outbox.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.wafflestudio.spring2025.common.email.outbox.event.EmailOutboxCreatedEvent
 import com.wafflestudio.spring2025.common.email.outbox.model.EmailOutbox
 import com.wafflestudio.spring2025.common.email.outbox.model.EmailOutboxEventType
 import com.wafflestudio.spring2025.common.email.outbox.repository.EmailOutboxCommandRepository
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import org.springframework.transaction.event.TransactionPhase
+import org.springframework.transaction.event.TransactionalEventListener
 import java.time.Instant
 
 @Component
@@ -27,20 +30,30 @@ class EmailOutboxWorker(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    fun onEmailOutboxCreated(event: EmailOutboxCreatedEvent) {
+        processEmail(event.outboxId)
+    }
+
     @Scheduled(fixedDelayString = "\${email.outbox.poll-interval-ms:1000}")
     fun processPendingEmails() {
         val now = Instant.now()
         val targetIds = emailOutboxCommandRepository.findProcessableIds(batchSize.coerceAtLeast(1), now)
         targetIds.forEach { id ->
-            if (!emailOutboxCommandRepository.claimForProcessing(id, now)) return@forEach
-            val message = emailOutboxRepository.findById(id).orElse(null) ?: return@forEach
-            runCatching { dispatch(message) }
-                .onSuccess {
-                    emailOutboxCommandRepository.markSent(id)
-                }.onFailure { throwable ->
-                    handleFailure(message, throwable)
-                }
+            processEmail(id)
         }
+    }
+
+    private fun processEmail(id: Long) {
+        val now = Instant.now()
+        if (!emailOutboxCommandRepository.claimForProcessing(id, now)) return
+        val message = emailOutboxRepository.findById(id).orElse(null) ?: return
+        runCatching { dispatch(message) }
+            .onSuccess {
+                emailOutboxCommandRepository.markSent(id)
+            }.onFailure { throwable ->
+                handleFailure(message, throwable)
+            }
     }
 
     private fun dispatch(message: EmailOutbox) {
