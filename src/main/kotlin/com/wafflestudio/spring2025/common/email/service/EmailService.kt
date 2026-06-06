@@ -120,6 +120,7 @@ class EmailService(
         val endsAt: Instant?,
         val location: String?,
         val newCapacity: Int,
+        val totalCount: Int,
         val registrationStartsAt: Instant?,
         val registrationEndsAt: Instant,
         val description: String?,
@@ -138,8 +139,7 @@ class EmailService(
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                         .replace("{location}", formatLocation(data.location))
-                        .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                        .replace("{capacity}", data.capacity?.toString() ?: "null")
+                        .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                         .replace(
                             "{registrationDateRange}",
                             formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -165,8 +165,7 @@ class EmailService(
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                         .replace("{location}", formatLocation(data.location))
-                        .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                        .replace("{capacity}", data.capacity?.toString() ?: "null")
+                        .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                         .replace(
                             "{registrationDateRange}",
                             formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -189,8 +188,7 @@ class EmailService(
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                         .replace("{location}", formatLocation(data.location))
-                        .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                        .replace("{capacity}", data.capacity?.toString() ?: "null")
+                        .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                         .replace(
                             "{registrationDateRange}",
                             formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -217,8 +215,7 @@ class EmailService(
                 .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                 .replace("{location}", formatLocation(data.location))
-                .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                .replace("{capacity}", data.capacity?.toString() ?: "null")
+                .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                 .replace(
                     "{registrationDateRange}",
                     formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -258,7 +255,7 @@ class EmailService(
                 .replace("{serviceDomain}", emailConfig.serviceDomain)
                 .replace("{name}", data.name)
                 .replace("{waitingNum}", data.waitingNum?.toString() ?: "-")
-                .replace("{newCapacity}", data.newCapacity.toString())
+                .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.newCapacity))
                 .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                 .replace("{location}", formatLocation(data.location))
@@ -302,8 +299,7 @@ class EmailService(
                 .replace("{eventTitle}", formatEventTitle(eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(startsAt, endsAt, "~"))
                 .replace("{location}", formatLocation(location))
-                .replace("{totalCount}", totalCount?.toString() ?: "null")
-                .replace("{capacity}", capacity?.toString() ?: "null")
+                .replace("{capacityDisplay}", formatCapacity(totalCount, capacity))
                 .replace(
                     "{registrationDateRange}",
                     formatRegistrationDateRange(registrationStartsAt, registrationEndsAt),
@@ -365,6 +361,20 @@ class EmailService(
             startText.isNullOrBlank() -> endText ?: ""
             endText.isNullOrBlank() -> startText
             else -> "$startText-$endText"
+        }
+    }
+
+    private fun formatCapacity(
+        totalCount: Int?,
+        capacity: Int?,
+    ): String {
+        if (capacity == null) return "${totalCount ?: "-"}명"
+        val confirmed = if (totalCount != null) minOf(totalCount, capacity) else capacity
+        val waitlisted = if (totalCount != null) maxOf(0, totalCount - capacity) else 0
+        return if (waitlisted > 0) {
+            "$confirmed/${capacity}명 (대기자 ${waitlisted}명)"
+        } else {
+            "$confirmed/${capacity}명"
         }
     }
 
