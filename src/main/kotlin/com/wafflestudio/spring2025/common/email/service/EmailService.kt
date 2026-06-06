@@ -99,6 +99,7 @@ class EmailService(
         val registrationStartsAt: Instant?,
         val registrationEndsAt: Instant?,
         val description: String?,
+        val publicId: String?,
     )
 
     data class EventCancellationEmailData(
@@ -211,6 +212,7 @@ class EmailService(
     fun sendRegistrationDeleteEmail(data: RegistrationDeleteEmailData) {
         val htmlContent =
             loadTemplate("registration-delete.html")
+                .replace("{serviceDomain}", emailConfig.serviceDomain)
                 .replace("{name}", data.name)
                 .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
@@ -220,6 +222,7 @@ class EmailService(
                     "{registrationDateRange}",
                     formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
                 ).replace("{description}", formatDescription(data.description))
+                .replace("{publicId}", data.publicId ?: "-")
 
         sendHtmlEmail(
             to = data.toEmail,

@@ -273,6 +273,7 @@ RegistrationService(
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                     description = event.description,
+                    publicId = event.publicId,
                 )
 
             afterCommit {
