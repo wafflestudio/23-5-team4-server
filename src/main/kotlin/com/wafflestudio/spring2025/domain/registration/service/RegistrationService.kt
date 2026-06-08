@@ -273,6 +273,7 @@ RegistrationService(
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                     description = event.description,
+                    publicId = event.publicId,
                 )
 
             afterCommit {
@@ -673,6 +674,9 @@ RegistrationService(
         toDemote.forEach { it.status = RegistrationStatus.WAITLISTED }
         registrationRepository.saveAll(toDemote)
 
+        val waitlistedCount = registrationRepository.countByEventIdAndStatus(eventId, RegistrationStatus.WAITLISTED).toInt()
+        val totalCount = newCapacity + waitlistedCount
+
         val demotedPublicIds = toDemote.map { it.registrationPublicId }
         val waitlistPositions =
             registrationRepository
@@ -698,6 +702,7 @@ RegistrationService(
                     endsAt = event.endsAt,
                     location = event.location,
                     newCapacity = newCapacity,
+                    totalCount = totalCount,
                     registrationStartsAt = event.registrationStartsAt,
                     registrationEndsAt = event.registrationEndsAt,
                     description = event.description,
