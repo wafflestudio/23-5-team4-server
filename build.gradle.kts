@@ -1,8 +1,8 @@
 import java.util.Properties
 
 plugins {
-    kotlin("jvm") version "1.9.25"
-    kotlin("plugin.spring") version "1.9.25"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.spring") version "2.2.0"
     id("org.springframework.boot") version "3.5.5"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.flywaydb.flyway") version "9.22.3"
@@ -15,7 +15,7 @@ description = "seminar-2025-springboot-assignment"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -30,6 +30,13 @@ buildscript {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/wafflestudio/spring-waffle")
+        credentials {
+            username = "wafflestudio"
+            password = System.getenv("GITHUB_TOKEN")
+        }
+    }
 }
 
 dependencies {
@@ -37,7 +44,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
@@ -56,11 +62,20 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mysql")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // profile_image 업로드 관련 의존성 추가
     implementation(platform("software.amazon.awssdk:bom:2.41.19"))
     implementation("software.amazon.awssdk:s3")
+
+    // OCI Vault - SDK 직접 사용 (waffle-oci-vault 2.1.0은 Spring Boot 3.5와 호환 안됨)
+    implementation("com.oracle.oci.sdk:oci-java-sdk-secrets:3.80.1")
+    implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.80.1")
+
+    // prometheus 의존성 추가
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
 }
 
 kotlin {

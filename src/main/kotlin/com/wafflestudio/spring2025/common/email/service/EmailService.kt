@@ -1,16 +1,10 @@
 package com.wafflestudio.spring2025.common.email.service
 
-import com.wafflestudio.spring2025.common.email.exception.EmailErrorCode
-import com.wafflestudio.spring2025.common.email.exception.EmailServiceUnavailableException
+import com.wafflestudio.spring2025.common.email.client.EmailClient
 import com.wafflestudio.spring2025.config.EmailConfig
 import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
-import jakarta.mail.MessagingException
-import jakarta.mail.internet.MimeMessage
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.ClassPathResource
-import org.springframework.mail.MailException
-import org.springframework.mail.javamail.JavaMailSender
-import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Service
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -19,8 +13,8 @@ import java.time.format.DateTimeFormatter
 
 @Service
 class EmailService(
-    private val javaMailSender: JavaMailSender,
     private val emailConfig: EmailConfig,
+    private val emailClient: EmailClient,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -52,24 +46,13 @@ class EmailService(
         subject: String,
         htmlContent: String,
     ) {
-        try {
-            val message: MimeMessage = javaMailSender.createMimeMessage()
-            val helper = MimeMessageHelper(message, "UTF-8")
-
-            helper.setTo(to)
-            helper.setSubject(subject)
-            helper.setText(htmlContent, true)
-            helper.setFrom("${emailConfig.fromName} <${emailConfig.fromEmail}>")
-
-            // AWS SES 샌드박스 모드에서는 발신/수신 주소 모두 사전 인증(Verified)이 필요합니다.
-            javaMailSender.send(message)
-        } catch (e: MessagingException) {
-            logger.error("메일 구성 실패: to={}, subject={}", to, subject, e)
-            throw EmailServiceUnavailableException(EmailErrorCode.EMAIL_SERVICE_UNAVAILABLE)
-        } catch (e: MailException) {
-            logger.error("메일 전송 실패: to={}, subject={}", to, subject, e)
-            throw EmailServiceUnavailableException(EmailErrorCode.EMAIL_SERVICE_UNAVAILABLE)
-        }
+        emailClient.sendEmail(
+            to = to,
+            subject = subject,
+            htmlContent = htmlContent,
+            fromEmail = emailConfig.fromEmail,
+            fromName = emailConfig.fromName,
+        )
     }
 
     /**
@@ -116,6 +99,35 @@ class EmailService(
         val registrationStartsAt: Instant?,
         val registrationEndsAt: Instant?,
         val description: String?,
+        val publicId: String?,
+    )
+
+    data class EventCancellationEmailData(
+        val toEmail: String,
+        val name: String,
+        val eventTitle: String?,
+        val startsAt: Instant?,
+        val endsAt: Instant?,
+        val location: String?,
+        val description: String?,
+        val hostEmail: String,
+    )
+
+    data class DemotionEmailData(
+        val toEmail: String,
+        val name: String,
+        val eventTitle: String?,
+        val startsAt: Instant?,
+        val endsAt: Instant?,
+        val location: String?,
+        val newCapacity: Int,
+        val totalCount: Int,
+        val registrationStartsAt: Instant?,
+        val registrationEndsAt: Instant,
+        val description: String?,
+        val publicId: String,
+        val registrationPublicId: String,
+        val waitingNum: Int?,
     )
 
     fun sendRegistrationStatusEmail(data: RegistrationStatusEmailData) {
@@ -123,12 +135,12 @@ class EmailService(
             RegistrationStatus.CONFIRMED -> {
                 val htmlContent =
                     loadTemplate("registration-confirmed.html")
+                        .replace("{serviceDomain}", emailConfig.serviceDomain)
                         .replace("{name}", data.name)
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                         .replace("{location}", formatLocation(data.location))
-                        .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                        .replace("{capacity}", data.capacity?.toString() ?: "null")
+                        .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                         .replace(
                             "{registrationDateRange}",
                             formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -138,7 +150,7 @@ class EmailService(
 
                 sendHtmlEmail(
                     to = data.toEmail,
-                    subject = "모이밍 참여 신청 확정",
+                    subject = emailName("참여 확정", data.eventTitle),
                     htmlContent = htmlContent,
                 )
 
@@ -148,13 +160,13 @@ class EmailService(
             RegistrationStatus.WAITLISTED -> {
                 val htmlContent =
                     loadTemplate("registration-waitlisted.html")
+                        .replace("{serviceDomain}", emailConfig.serviceDomain)
                         .replace("{name}", data.name)
                         .replace("{waitingNum}", data.waitingNum?.toString() ?: "-")
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                         .replace("{location}", formatLocation(data.location))
-                        .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                        .replace("{capacity}", data.capacity?.toString() ?: "null")
+                        .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                         .replace(
                             "{registrationDateRange}",
                             formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -164,7 +176,7 @@ class EmailService(
 
                 sendHtmlEmail(
                     to = data.toEmail,
-                    subject = "모이밍 참여 신청 대기",
+                    subject = emailName("대기 등록", data.eventTitle),
                     htmlContent = htmlContent,
                 )
 
@@ -177,8 +189,7 @@ class EmailService(
                         .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                         .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                         .replace("{location}", formatLocation(data.location))
-                        .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                        .replace("{capacity}", data.capacity?.toString() ?: "null")
+                        .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                         .replace(
                             "{registrationDateRange}",
                             formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
@@ -186,7 +197,7 @@ class EmailService(
 
                 sendHtmlEmail(
                     to = data.toEmail,
-                    subject = "모이밍 참여 신청 강제 취소",
+                    subject = emailName("강제 취소", data.eventTitle),
                     htmlContent = htmlContent,
                 )
 
@@ -201,24 +212,70 @@ class EmailService(
     fun sendRegistrationDeleteEmail(data: RegistrationDeleteEmailData) {
         val htmlContent =
             loadTemplate("registration-delete.html")
+                .replace("{serviceDomain}", emailConfig.serviceDomain)
                 .replace("{name}", data.name)
                 .replace("{eventTitle}", formatEventTitle(data.eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
                 .replace("{location}", formatLocation(data.location))
-                .replace("{totalCount}", data.totalCount?.toString() ?: "null")
-                .replace("{capacity}", data.capacity?.toString() ?: "null")
+                .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.capacity))
                 .replace(
                     "{registrationDateRange}",
                     formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
                 ).replace("{description}", formatDescription(data.description))
+                .replace("{publicId}", data.publicId ?: "-")
 
         sendHtmlEmail(
             to = data.toEmail,
-            subject = "모이밍 참여 신청 취소",
+            subject = emailName("참여 신청 취소", data.eventTitle),
             htmlContent = htmlContent,
         )
 
         logger.info("신청 삭제 정보가 ${data.toEmail} 로 전달되었습니다.")
+    }
+
+    fun sendEventCancellationEmail(data: EventCancellationEmailData) {
+        val htmlContent =
+            loadTemplate("event-cancelled.html")
+                .replace("{name}", data.name)
+                .replace("{eventTitle}", formatEventTitle(data.eventTitle))
+                .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
+                .replace("{location}", formatLocation(data.location))
+                .replace("{hostEmail}", data.hostEmail)
+                .replace("{description}", formatDescription(data.description))
+
+        sendHtmlEmail(
+            to = data.toEmail,
+            subject = emailName("일정 취소", data.eventTitle),
+            htmlContent = htmlContent,
+        )
+
+        logger.info("일정 취소 정보가 ${data.toEmail} 로 전달되었습니다.")
+    }
+
+    fun sendDemotionEmail(data: DemotionEmailData) {
+        val htmlContent =
+            loadTemplate("registration-demoted.html")
+                .replace("{serviceDomain}", emailConfig.serviceDomain)
+                .replace("{name}", data.name)
+                .replace("{waitingNum}", data.waitingNum?.toString() ?: "-")
+                .replace("{capacityDisplay}", formatCapacity(data.totalCount, data.newCapacity))
+                .replace("{eventTitle}", formatEventTitle(data.eventTitle))
+                .replace("{eventDateRange}", formatEventDateRange(data.startsAt, data.endsAt, "-"))
+                .replace("{location}", formatLocation(data.location))
+                .replace(
+                    "{registrationDateRange}",
+                    formatRegistrationDateRange(data.registrationStartsAt, data.registrationEndsAt),
+                ).replace("{description}", formatDescription(data.description))
+                .replace("{publicId}", data.publicId)
+                .replace("{registrationPublicId}", data.registrationPublicId)
+
+        sendHtmlEmail(
+            to = data.toEmail,
+            subject = emailName("대기자로 전환", data.eventTitle),
+            htmlContent = htmlContent,
+        )
+
+        logger.info("정원 축소 대기 변경 알림이 ${data.toEmail} 로 전달되었습니다.")
     }
 
     fun sendWaitlistPromotionEmail(
@@ -239,13 +296,13 @@ class EmailService(
     ) {
         val htmlContent =
             loadTemplate("registration-waitlist-promoted.html")
+                .replace("{serviceDomain}", emailConfig.serviceDomain)
                 .replace("{name}", name)
                 .replace("{waitingNum}", waitingNum?.toString() ?: "-")
                 .replace("{eventTitle}", formatEventTitle(eventTitle))
                 .replace("{eventDateRange}", formatEventDateRange(startsAt, endsAt, "~"))
                 .replace("{location}", formatLocation(location))
-                .replace("{totalCount}", totalCount?.toString() ?: "null")
-                .replace("{capacity}", capacity?.toString() ?: "null")
+                .replace("{capacityDisplay}", formatCapacity(totalCount, capacity))
                 .replace(
                     "{registrationDateRange}",
                     formatRegistrationDateRange(registrationStartsAt, registrationEndsAt),
@@ -255,7 +312,7 @@ class EmailService(
 
         sendHtmlEmail(
             to = toEmail,
-            subject = "모이밍 참여 신청 대기 후, 확정",
+            subject = emailName("참여 확정", eventTitle),
             htmlContent = htmlContent,
         )
 
@@ -273,6 +330,14 @@ class EmailService(
         } else {
             location
         }
+
+    private fun emailName(
+        title: String,
+        eventTitle: String?,
+    ): String {
+        val safeEventTitle = if (eventTitle.isNullOrBlank()) "제목 미정 모임" else eventTitle
+        return "[모이밍] $title: $safeEventTitle"
+    }
 
     private fun formatEventDateRange(
         start: Instant?,
@@ -299,6 +364,20 @@ class EmailService(
             startText.isNullOrBlank() -> endText ?: ""
             endText.isNullOrBlank() -> startText
             else -> "$startText-$endText"
+        }
+    }
+
+    private fun formatCapacity(
+        totalCount: Int?,
+        capacity: Int?,
+    ): String {
+        if (capacity == null) return "${totalCount ?: "-"}명"
+        val confirmed = if (totalCount != null) minOf(totalCount, capacity) else capacity
+        val waitlisted = if (totalCount != null) maxOf(0, totalCount - capacity) else 0
+        return if (waitlisted > 0) {
+            "$confirmed/${capacity}명 (대기자 ${waitlisted}명)"
+        } else {
+            "$confirmed/${capacity}명"
         }
     }
 

@@ -12,6 +12,8 @@ interface RegistrationRepository :
     PagingAndSortingRepository<Registration, Long> {
     fun findByEventId(eventId: Long): List<Registration>
 
+    fun deleteByEventId(eventId: Long)
+
     fun findByRegistrationPublicId(registrationPublicId: String): Registration?
 
     @Query(
@@ -39,6 +41,11 @@ interface RegistrationRepository :
         eventId: Long,
     ): Registration?
 
+    fun findByEventIdAndStatusIn(
+        eventID: Long,
+        statuses: Collection<RegistrationStatus>,
+    ): List<Registration>
+
     fun countByEventId(eventID: Long): Long
 
     fun countByEventIdAndStatus(
@@ -46,14 +53,45 @@ interface RegistrationRepository :
         registrationStatus: RegistrationStatus,
     ): Long
 
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM registrations
+        WHERE event_id = :eventId AND status = :status
+        FOR SHARE
+        """,
+    )
+    fun countByEventIdAndStatusWithLock(
+        eventId: Long,
+        status: RegistrationStatus,
+    ): Long
+
     fun findByEventIdAndStatusOrderByCreatedAtAsc(
         eventID: Long,
         registrationStatus: RegistrationStatus,
     ): List<Registration>
 
+    fun findByEventIdAndStatusOrderByCreatedAtAsc(
+        eventID: Long,
+        registrationStatus: RegistrationStatus,
+        pageable: Pageable,
+    ): List<Registration>
+
     @Query(
         """
-        SELECT event_id AS eventId, COUNT(*) AS totalCount
+        SELECT * FROM registrations
+        WHERE event_id = :eventId AND status = :status
+        ORDER BY created_at DESC, id DESC
+        """,
+    )
+    fun findByEventIdAndStatusOrderByCreatedAtDescIdDesc(
+        eventId: Long,
+        status: RegistrationStatus,
+    ): List<Registration>
+
+    @Query(
+        """
+        SELECT event_id, COUNT(*) AS total_count
         FROM registrations
         WHERE event_id IN (:eventIds) AND status IN (:statuses)
         GROUP BY event_id
@@ -66,9 +104,9 @@ interface RegistrationRepository :
 
     @Query(
         """
-        SELECT registration_public_id AS registrationPublicId,
-               event_id AS eventId,
-               ROW_NUMBER() OVER (PARTITION BY event_id ORDER BY created_at ASC, id ASC) AS waitlistNumber
+        SELECT registration_public_id,
+               event_id,
+               ROW_NUMBER() OVER (PARTITION BY event_id ORDER BY created_at ASC, id ASC) AS waitlist_number
         FROM registrations
         WHERE event_id IN (:eventIds) AND status = :status
         """,
@@ -83,7 +121,7 @@ interface RegistrationRepository :
         SELECT r.*
         FROM registrations r
         WHERE r.event_id = :eventId
-        ORDER BY r.created_at DESC, r.registration_public_id DESC
+        ORDER BY r.created_at ASC, r.registration_public_id ASC
         LIMIT :limit OFFSET :offset
         """,
     )
@@ -98,7 +136,7 @@ interface RegistrationRepository :
         SELECT r.*
         FROM registrations r
         WHERE r.event_id = :eventId AND r.status = :status
-        ORDER BY r.created_at DESC, r.registration_public_id DESC
+        ORDER BY r.created_at ASC, r.registration_public_id ASC
         LIMIT :limit OFFSET :offset
         """,
     )
@@ -148,7 +186,7 @@ interface RegistrationRepository :
                ranked.waitlist_number AS waitlist_number
         FROM (
             SELECT r.registration_public_id,
-                   ROW_NUMBER() OVER (ORDER BY r.created_at ASC, r.registration_public_id ASC) AS waitlist_number
+                   ROW_NUMBER() OVER (ORDER BY r.created_at ASC, r.id ASC) AS waitlist_number
             FROM registrations r
             WHERE r.event_id = :eventId AND r.status = :status
         ) ranked
