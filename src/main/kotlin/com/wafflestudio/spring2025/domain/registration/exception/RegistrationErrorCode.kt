@@ -74,8 +74,8 @@ enum class RegistrationErrorCode(
 
     REGISTRATION_BLOCKED_BANNED(
         httpStatusCode = HttpStatus.FORBIDDEN,
-        title = "차단된 신청입니다.",
-        message = "차단된 신청은\n다시 신청할 수 없습니다.",
+        title = "차단된 사용자입니다.",
+        message = "해당 모임의 주최자에 의해\n차단되어 신청할 수 없습니다.",
     ),
 
     NOT_WITHIN_REGISTRATION_WINDOW(
