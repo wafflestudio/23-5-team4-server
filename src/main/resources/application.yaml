@@ -132,3 +132,14 @@ oci:
   vault:
     secret-ids: ocid1.vaultsecret.oc1.ap-chuncheon-1.amaaaaaat2m5lbqameflpkt7abivvrauqwheybzrkqipf7msv3ol6ikhd3aq
     region: ap-chuncheon-1
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          jdbc: INFO
+        jdbc:
+          core:
+            JdbcTemplate: INFO
+            namedparam:
+              NamedParameterJdbcTemplate: INFO
