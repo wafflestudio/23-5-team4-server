@@ -1,6 +1,8 @@
 package com.wafflestudio.spring2025
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.wafflestudio.spring2025.common.email.outbox.model.EmailOutboxEventType
+import com.wafflestudio.spring2025.common.email.outbox.repository.EmailOutboxRepository
 import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.domain.event.dto.request.CreateEventRequest
 import com.wafflestudio.spring2025.domain.event.dto.request.UpdateEventRequest
@@ -11,17 +13,12 @@ import com.wafflestudio.spring2025.domain.registration.model.RegistrationStatus
 import com.wafflestudio.spring2025.domain.registration.repository.RegistrationRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.any
-import org.mockito.kotlin.never
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -46,10 +43,8 @@ class EventIntegrationTest
         private val dataGenerator: DataGenerator,
         private val eventRepository: EventRepository,
         private val registrationRepository: RegistrationRepository,
+        private val emailOutboxRepository: EmailOutboxRepository,
     ) {
-        @MockitoBean
-        private lateinit var emailService: EmailService
-
         // =================================================================
         // Helpers
         // =================================================================
@@ -1081,7 +1076,14 @@ class EventIntegrationTest
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
 
-            verify(emailService, times(1)).sendDemotionEmail(any())
+            val demotionOutboxesForEvent =
+                emailOutboxRepository
+                    .findAll()
+                    .filter { it.eventType == EmailOutboxEventType.REGISTRATION_DEMOTION }
+                    .map { mapper.readValue(it.payloadJson, EmailService.DemotionEmailData::class.java) }
+                    .filter { it.publicId == event.publicId }
+
+            assertThat(demotionOutboxesForEvent).hasSize(1)
         }
 
         @Test
@@ -1282,7 +1284,17 @@ class EventIntegrationTest
                         .header("Authorization", "Bearer $token"),
                 ).andExpect(status().isNoContent)
 
-            verify(emailService, times(2)).sendEventCancellationEmail(any())
+            val cancellationOutboxesForEvent =
+                emailOutboxRepository
+                    .findAll()
+                    .filter { it.eventType == EmailOutboxEventType.EVENT_CANCELLATION }
+                    .map { mapper.readValue(it.payloadJson, EmailService.EventCancellationEmailData::class.java) }
+                    .filter { it.eventPublicId == event.publicId }
+
+            assertThat(cancellationOutboxesForEvent).hasSize(2)
+            assertThat(cancellationOutboxesForEvent.map { it.toEmail })
+                .containsExactlyInAnyOrder(confirmed.email, waitlisted.email)
+                .doesNotContain(banned.email)
         }
 
         @Test
@@ -1315,6 +1327,13 @@ class EventIntegrationTest
                         .header("Authorization", "Bearer $token"),
                 ).andExpect(status().isNoContent)
 
-            verify(emailService, never()).sendEventCancellationEmail(any())
+            val cancellationOutboxesForEvent =
+                emailOutboxRepository
+                    .findAll()
+                    .filter { it.eventType == EmailOutboxEventType.EVENT_CANCELLATION }
+                    .map { mapper.readValue(it.payloadJson, EmailService.EventCancellationEmailData::class.java) }
+                    .filter { it.eventPublicId == event.publicId }
+
+            assertThat(cancellationOutboxesForEvent).isEmpty()
         }
     }

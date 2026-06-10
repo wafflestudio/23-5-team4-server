@@ -1,5 +1,6 @@
 package com.wafflestudio.spring2025.domain.registration.service
 
+import com.wafflestudio.spring2025.common.email.outbox.service.EmailOutboxProducer
 import com.wafflestudio.spring2025.common.email.service.EmailService
 import com.wafflestudio.spring2025.common.image.service.ImageService
 import com.wafflestudio.spring2025.domain.event.exception.EventFullException
@@ -31,8 +32,6 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.TransactionSynchronization
-import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Duration
@@ -46,7 +45,7 @@ RegistrationService(
     private val eventRepository: EventRepository,
     private val eventLockRepository: EventLockRepository,
     private val userRepository: UserRepository,
-    private val emailService: EmailService,
+    private val emailOutboxProducer: EmailOutboxProducer,
     private val imageService: ImageService,
 ) : WaitlistReconciliationService {
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
@@ -182,9 +181,7 @@ RegistrationService(
                     waitingNum = waitlistedNumber,
                 )
 
-            afterCommit {
-                emailService.sendRegistrationStatusEmail(emailData)
-            }
+            emailOutboxProducer.enqueueRegistrationStatus(emailData)
         } else {
             throw RegistrationValidationException(RegistrationErrorCode.REGISTRATION_WRONG_EMAIL)
         }
@@ -263,6 +260,7 @@ RegistrationService(
             val emailData =
                 EmailService.RegistrationDeleteEmailData(
                     toEmail = recipientEmail,
+                    registrationPublicId = registration.registrationPublicId,
                     name = registration.guestName ?: registrationUser?.name ?: "참여자",
                     eventTitle = event.title,
                     startsAt = event.startsAt,
@@ -276,9 +274,7 @@ RegistrationService(
                     publicId = event.publicId,
                 )
 
-            afterCommit {
-                emailService.sendRegistrationDeleteEmail(emailData)
-            }
+            emailOutboxProducer.enqueueRegistrationDelete(emailData)
         }
     }
 
@@ -647,9 +643,7 @@ RegistrationService(
                 registrationPublicId = registration.registrationPublicId,
             )
 
-        afterCommit {
-            emailService.sendRegistrationStatusEmail(emailData)
-        }
+        emailOutboxProducer.enqueueRegistrationStatus(emailData)
     }
 
     @Transactional
@@ -712,9 +706,7 @@ RegistrationService(
                 )
             }
 
-        afterCommit {
-            emailDataList.forEach { emailService.sendDemotionEmail(it) }
-        }
+        emailDataList.forEach { emailOutboxProducer.enqueueRegistrationDemotion(it) }
     }
 
     @Transactional
@@ -766,7 +758,7 @@ RegistrationService(
                 if (recipientEmail.isNullOrBlank()) {
                     null
                 } else {
-                    WaitlistPromotionEmailData(
+                    EmailService.WaitlistPromotionEmailData(
                         toEmail = recipientEmail,
                         eventTitle = event.title,
                         name = recipientName,
@@ -785,57 +777,8 @@ RegistrationService(
                 }
             }
 
-        afterCommit {
-            emailDataList.forEach { data ->
-                emailService.sendWaitlistPromotionEmail(
-                    toEmail = data.toEmail,
-                    eventTitle = data.eventTitle,
-                    name = data.name,
-                    waitingNum = data.waitingNum,
-                    startsAt = data.startsAt,
-                    endsAt = data.endsAt,
-                    location = data.location,
-                    totalCount = data.totalCount,
-                    capacity = data.capacity,
-                    registrationStartsAt = data.registrationStartsAt,
-                    registrationEndsAt = data.registrationEndsAt,
-                    description = data.description,
-                    eventPublicId = data.eventPublicId,
-                    registrationPublicId = data.registrationPublicId,
-                )
-            }
+        emailDataList.forEach { data ->
+            emailOutboxProducer.enqueueWaitlistPromotion(data)
         }
-    }
-
-    private data class WaitlistPromotionEmailData(
-        val toEmail: String,
-        val eventTitle: String,
-        val name: String,
-        val waitingNum: Int?,
-        val startsAt: Instant?,
-        val endsAt: Instant?,
-        val location: String?,
-        val totalCount: Int?,
-        val capacity: Int?,
-        val registrationStartsAt: Instant?,
-        val registrationEndsAt: Instant?,
-        val description: String?,
-        val eventPublicId: String,
-        val registrationPublicId: String,
-    )
-
-    private fun afterCommit(action: () -> Unit) {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            action()
-            return
-        }
-
-        TransactionSynchronizationManager.registerSynchronization(
-            object : TransactionSynchronization {
-                override fun afterCommit() {
-                    action()
-                }
-            },
-        )
     }
 }
