@@ -12,4 +12,6 @@ interface UserIdentityRepository : ListCrudRepository<UserIdentity, Long> {
     fun findByUserId(userId: Long): List<UserIdentity>
 
     fun findByProviderUserId(providerId: String): List<UserIdentity>
+
+    fun deleteByUserId(userId: Long)
 }

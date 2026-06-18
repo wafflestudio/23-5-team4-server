@@ -26,7 +26,7 @@ data class EventInfo(
 
 data class CreatorInfo(
     val name: String,
-    val email: String,
+    val email: String?,
     val profileImage: String?,
 )
 

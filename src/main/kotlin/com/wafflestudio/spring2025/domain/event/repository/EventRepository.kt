@@ -8,6 +8,8 @@ import java.time.Instant
 interface EventRepository : ListCrudRepository<Event, Long> {
     fun findByPublicId(publicId: String): Event?
 
+    fun findByCreatedBy(createdBy: Long): List<Event>
+
     fun findByCreatedByAndCreatedAtIsNotNullOrderByCreatedAtDesc(
         createdBy: Long,
         pageable: Pageable,

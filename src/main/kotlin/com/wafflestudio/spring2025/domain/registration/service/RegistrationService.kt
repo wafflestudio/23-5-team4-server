@@ -282,6 +282,35 @@ RegistrationService(
         }
     }
 
+    /**
+     * 유저 탈퇴 시 호출. 신청기간/소유권 체크 없이 다수 등록을 일괄 삭제하고
+     * 확정 등록이 있던 이벤트에 대해서만 대기자 승격을 트리거한다.
+     * 탈퇴자에게 취소 메일은 발송하지 않는다. 대기자 승격 메일은 reconcileWaitlist 내부에서 처리됨.
+     */
+    @Transactional
+    fun cancelRegistrationsForWithdrawal(registrations: List<Registration>) {
+        if (registrations.isEmpty()) return
+
+        val byEventId = registrations.groupBy { it.eventId }
+        val eventIds = byEventId.keys.sorted()
+
+        // 1. 이벤트 락 (ID 오름차순으로 deadlock 방지)
+        eventIds.forEach { eventLockRepository.lockById(it) }
+
+        // 2. CONFIRMED 등록이 포함된 이벤트만 대기자 승격 필요
+        val eventsToReconcile =
+            byEventId
+                .filterValues { regs -> regs.any { it.status == RegistrationStatus.CONFIRMED } }
+                .keys
+                .sorted()
+
+        // 3. 배치 삭제
+        registrationRepository.deleteAllById(registrations.map { it.id!! })
+
+        // 4. 필요한 이벤트만 승격
+        eventsToReconcile.forEach { reconcileWaitlist(it) }
+    }
+
     private fun toResponseStatus(status: RegistrationStatus): RegistrationStatusResponse =
         when (status) {
             RegistrationStatus.HOST -> RegistrationStatusResponse.CONFIRMED
